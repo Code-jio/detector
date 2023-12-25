@@ -1,0 +1,57 @@
+//  <div class="render-pannel">
+//     <div class="render-pannel__title">
+//       <span>渲染信息</span>
+//       <span class="render-pannel__title__close">X</span>
+//     </div>
+//     <div class="render-pannel__content">
+//       <div class="render-pannel__content__item">
+//         <span>面数：</span>
+//         <span>${this.sceneInfo.side_num}</span>
+//       </div>
+//       <div class="render-pannel__content__item">
+//         <span>材质数：</span>
+//         <span>${this.sceneInfo.material_num}</span>
+//       </div>
+//       <div class="render-pannel__content__item">
+//         <span>贴图数：</span>
+//         <span>${this.sceneInfo.texture_num}</span>
+//       </div>
+//       <div class="render-pannel__content__item">
+//         <span>网格数：</span>
+//         <span>${this.sceneInfo.mesh_num}</span>
+//       </div>
+//     </div>
+//   </div>
+
+// 为以上模板创建样式
+.render-pannel {
+  position: absolute;
+  top: 0;
+  left: 90px;
+  width: 200px;
+  height: 200px;
+  background-color: #fff;
+  border-left: 1px solid #ccc;
+  box-shadow: 0 0 10px #ccc;
+  z-index: 100;
+  &__title {
+    height: 30px;
+    line-height: 30px;
+    padding: 0 10px;
+    border-bottom: 1px solid #ccc;
+    cursor: move;
+    &__close {
+      float: right;
+    }
+  }
+  &__content {
+    padding: 10px;
+    &__item {
+      height: 30px;
+      line-height: 30px;
+      span {
+        margin-right: 10px;
+      }
+    }
+  }
+}

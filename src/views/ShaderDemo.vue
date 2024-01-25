@@ -1,6 +1,8 @@
 <template>
-    <canvas class="container" ref="container"></canvas>
-    <div class="state" ref="state"></div>
+    <div>
+        <canvas class="container" ref="container"></canvas>
+        <div class="state" ref="state"></div>
+    </div>
 </template>
 <script setup>
 import { onMounted, reactive, ref } from 'vue'
@@ -96,7 +98,7 @@ const addMesh = () => {
         transparent: true, // 设置材质透明
         // opacity: 0.5, // 设置材质透明度
     });
-    const mesh = new THREE.Mesh(geometry, material); // 创建立方体网格模型
+    const mesh = new THREE.Mesh(geometry, getShaderMaterial()); // 创建立方体网格模型
     mesh.name = 'mesh'; // 设置立方体网格模型名称
     mesh.position.set(0, 0, 0); // 设置立方体网格模型位置
     scene.add(mesh); // 添加立方体网格模型到场景
@@ -118,15 +120,24 @@ function getShaderMaterial() {
     // attribute：attribute关键字一般用来声明与顶点数据有关变量。
     // attribute vec3 pos：表示用attribute声明了一个变量pos，attribute的作用就是指明pos是顶点相关变量，pos的数类型是三维向量vec3，三维向量vec3意味着pos表示的顶点数据有x、y、z三个分量。
     const shader = new THREE.ShaderMaterial({
-        vertexShader: `
-            attribute vec3 pos; // 注意在主函数外面
+        vertexShader: /*glsl*/ `
+            // uniform：uniform关键字一般用来声明与顶点数据无关变量。
+            // uniform mat4 modelMatrix：表示用uniform声明了一个变量modelMatrix，uniform的作用就是指明modelMatrix是顶点无关变量，modelMatrix的数类型是四维矩阵mat4，四维矩阵mat4意味着modelMatrix表示的是一个4x4的矩阵。默认提供，不用声明就能直接使用。
+            // uniform mat4 viewMatrix：表示用uniform声明了一个变量viewMatrix，viewMatrix的数类型是四维矩阵mat4，四维矩阵mat4意味着viewMatrix表示的是一个4x4的矩阵。 默认提供，不用声明就能直接使用。
+            // uniform mat4 projectionMatrix：表示用uniform声明了一个变量projectionMatrix，projectionMatrix的数类型是四维矩阵mat4，四维矩阵mat4意味着projectionMatrix表示的是一个4x4的矩阵。 默认提供，不用声明就能直接使用。
             void main(){
                 // 处理定点数据
-                gl_Position = vec4(pos, 1.0 ); // gl_Position内置变量，不用声明就能直接使用，它表示一个四维向量
+                gl_Position = projectionMatrix * viewMatrix * modelMatrix * vec4(position, 1.0); // 顶点坐标
             }
         `, // 顶点着色器:定义如何处理3D模型的顶点。
-        fragmentShader: `` // 片元着色器:负责处理每一个像素的颜色和光照等效果。
+        fragmentShader: /*glsl*/ `
+            void main(){
+                // 处理像素数据
+                gl_FragColor = vec4(1.0, 0.0, 0.0, 1.0); // 像素颜色
+            }
+        ` // 片元着色器:负责处理每一个像素的颜色和光照等效果。
     })
+    return shader
 }
 
 // 射线拾取

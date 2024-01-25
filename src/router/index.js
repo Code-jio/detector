@@ -1,35 +1,48 @@
-import { createRouter, createWebHistory } from 'vue-router';
+import {
+  createRouter,
+  createWebHistory
+} from 'vue-router';
 
 export default createRouter({
   history: createWebHistory(), // hash模式：createWebHashHistory
-  routes: [
-    {
+  routes: [{
       path: '/',
       redirect: '/shader',
     },
     {
       path: '/home',
-      component: () => import('@/views/Home.vue'),
+      component: () =>
+        import('@/views/Home.vue'),
     },
     {
       path: '/detector',
-      component: () => import('@/views/Detector.vue'),
+      component: () =>
+        import('@/views/Detector.vue'),
     },
     {
       path: '/animate',
-      component: () => import('@/views/Animation.vue'),
+      component: () =>
+        import('@/views/Animation.vue'),
     },
     {
       path: '/shader',
-      component: () => import('@/views/ShaderDemo.vue'),
+      component: () =>
+        import('@/views/ShaderDemo.vue'),
     },
     {
       path: '/test',
-      component: () => import('@/views/Test.vue'),
+      component: () =>
+        import('@/views/Test.vue'),
     },
     {
       path: '/base',
-      component: () => import('@/views/BaseScene.vue'),
+      component: () =>
+        import('@/views/BaseScene.vue'),
+    },
+    {
+      path: '/quarter',
+      component: () =>
+        import('@/views/Quarternion.vue'),
     },
   ],
 });

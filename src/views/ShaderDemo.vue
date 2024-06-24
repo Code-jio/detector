@@ -42,6 +42,7 @@ const frameNum = ref(0); // 帧数
 let current_animate = {}; // 当前动画
 const animate_List = reactive([]); // 动画列表
 const current_animate_options = reactive([]); // 当前动画列表
+let shaderMaterial
 
 // 创建渲染器
 const createRender = (dom) => {
@@ -98,16 +99,115 @@ const createGridHelper = () => {
 // 添加mesh立方体
 const addMesh = () => {
   const geometry = new THREE.BoxGeometry(10, 10, 10); // 创建立方体几何体
-  const material = new THREE.MeshLambertMaterial({
-    // 创建材质
-    color: 0x0000ff,
-    transparent: true, // 设置材质透明
-    // opacity: 0.5, // 设置材质透明度
-  });
-  const mesh = new THREE.Mesh(geometry, getShaderMaterial()); // 创建立方体网格模型
-  mesh.name = "mesh"; // 设置立方体网格模型名称
+  shaderMaterial = getShaderMaterial();
+  const mesh = new THREE.Mesh(geometry, shaderMaterial); // 创建立方体网格模型
   mesh.position.set(0, 0, 0); // 设置立方体网格模型位置
   scene.add(mesh); // 添加立方体网格模型到场景
+};
+
+// 添加sprite精灵 shader材质
+const addSprite = () => {
+  const material = new THREE.ShaderMaterial({
+    uniforms: {
+      u_time: { value: 0.0 },
+      u_resolution: { value: new THREE.Vector2() },
+    },
+    vertexShader: /* glsl */ `
+          void main() {
+              gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0);
+          }
+        `,
+    fragmentShader: /* glsl */ `
+            uniform float u_time;
+            uniform vec2 u_resolution;
+            void main() {
+                vec2 st = gl_FragCoord.xy/u_resolution.xy;
+                gl_FragColor = vec4(st.x,st.y,0.5,1.0);
+            }
+        `,
+  });
+  const sprite = new THREE.Sprite(material);
+  sprite.scale.set(100, 100, 100);
+  sprite.position.set(10, 10, 10);
+  console.log(sprite);
+  scene.add(sprite);
+}
+
+const createLine = () => {
+  shaderMaterial = new THREE.ShaderMaterial({
+    uniforms: {
+      u_time: { value: 0.0 },
+      u_resolution: { value: new THREE.Vector2() },
+    },
+    vertexShader: /* glsl */ `
+          void main() {
+            gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0);
+          }
+        `,
+    fragmentShader: /* glsl */ `
+        uniform float u_time;
+        void main() {
+          vec3 color = vec3(0.5 + 0.5 * cos(u_time), 0.5 + 0.5 * sin(u_time), 0.5);
+          gl_FragColor = vec4(color, 1.0);
+        }
+      `,
+    transparent: true,
+  });
+  const geometry = new THREE.BufferGeometry();
+
+  // 创建随机三维路径点
+  const vertices = new Float32Array(1000 * 3);
+  for (let i = 0; i < 1000; i++) {
+    vertices[i * 3] = random(-100, 100);
+    vertices[i * 3 + 1] = random(-100, 100);
+    vertices[i * 3 + 2] = random(-100, 100);
+  }
+
+
+  geometry.addAttribute('position', new THREE.BufferAttribute(vertices, 3));
+  const line = new THREE.Line(geometry, shaderMaterial);
+  // line.scale.set(100, 100, 100);
+  scene.add(line);
+};
+
+const createTriangle = () => {
+  // 从创建一个 三角形并利用shader赋予渐变色材质
+  const geometry = new THREE.BufferGeometry();
+  const vertices = new Float32Array([
+    -1.0, -1.0, 0.0,
+    1.0, -1.0, 0.0,
+    1.0, 1.0, 0.0,
+    // 第二个三角形
+    -1.0, -1.0, 0.0,
+    1.0, 1.0, 0.0,
+    -1.0, 1.0, 0.0,
+  ]);
+  geometry.addAttribute('position', new THREE.BufferAttribute(vertices, 3));
+  const material = new THREE.ShaderMaterial({
+    uniforms: {
+      // u_resolution: { value: new THREE.Vector2(window.innerWidth, window.innerHeight) },
+      u_time: { value: 0.0 },
+    },
+    vertexShader: `
+      uniform vec2 u_resolution;
+      void main() {
+        gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0);
+      }
+    `,
+    // 随时间变化的颜色
+    fragmentShader: `
+        uniform float u_time;
+        void main() {
+            vec3 color = vec3(0.5 + 0.5 * cos(u_time), 0.5 + 0.5 * sin(u_time), 0.5);
+            gl_FragColor = vec4(color, 1.0);
+        }
+    `,
+  });
+  const triangle = new THREE.Mesh(geometry, material);
+  triangle.scale.set(100, 100, 100);
+  // 双面显示
+  triangle.material.side = THREE.DoubleSide;
+  scene.add(triangle);
 };
 
 // 延时函数
@@ -124,25 +224,32 @@ function getShaderMaterial() {
   // attribute:attribute关键字一般用来声明与顶点数据有关变量。
   // attribute vec3 pos:表示用attribute声明了一个变量pos，attribute的作用就是指明pos是顶点相关变量，pos的数类型是三维向量vec3，三维向量vec3意味着pos表示的顶点数据有x、y、z三个分量。
   const shader = new THREE.ShaderMaterial({
+    uniforms: {
+      u_time: { value: 0.0 },
+      u_resolution: { value: new THREE.Vector2() },
+    },
     vertexShader: /*glsl*/ `
-            // uniform:uniform关键字一般用来声明与顶点数据无关变量。
-            // uniform mat4 modelMatrix:表示用uniform声明了一个变量modelMatrix,uniform的作用就是指明modelMatrix是顶点无关变量,modelMatrix的数类型是四维矩阵mat4,四维矩阵mat4意味着modelMatrix表示的是一个4x4的矩阵。默认提供,不用声明就能直接使用。
-            // uniform mat4 viewMatrix:表示用uniform声明了一个变量viewMatrix,viewMatrix的数类型是四维矩阵mat4,四维矩阵mat4意味着viewMatrix表示的是一个4x4的矩阵。 默认提供,不用声明就能直接使用。
-            // uniform mat4 projectionMatrix:表示用uniform声明了一个变量projectionMatrix,projectionMatrix的数类型是四维矩阵mat4,四维矩阵mat4意味着projectionMatrix表示的是一个4x4的矩阵。 默认提供,不用声明就能直接使用。
-
-
-            // 顶点着色器
-            void main(){
-                // 处理定点数据
-                gl_Position = projectionMatrix * viewMatrix * modelMatrix * vec4(position, 1.0); // 顶点坐标
-            }
+          // 顶点着色器
+          void main(void){
+            // 处理定点数据
+            gl_Position = projectionMatrix * viewMatrix * modelMatrix * vec4(position, 1.0); // 顶点坐标
+          }
         `, // 顶点着色器:定义如何处理3D模型的顶点。
     fragmentShader: /*glsl*/ `
-            void main(){
-                // 处理像素数据
-                gl_FragColor = vec4(1.0, 0.0, 0.0, 1.0); // 像素颜色
-            }
-        `, // 片元着色器:负责处理每一个像素的颜色和光照等效果。
+      // 片元着色器
+      uniform float time; // 时间
+      // 随机数生成函数
+      float random (in vec2 st) {
+        return fract(sin(dot(st.xy, vec2(12.9898,78.233)))*43758.5453123); // 生成随机数
+      }
+      // 主函数
+
+      void main(){
+        // 颜色随机变化
+        vec3 color = vec3(random(gl_FragCoord.xy), random(gl_FragCoord.xy), random(gl_FragCoord.xy)); // 随机颜色
+        gl_FragColor = vec4(color, 1.0); // 片元颜色
+      }
+    `, // 片元着色器:负责处理每一个像素的颜色和光照等效果。
   });
   return shader;
 }
@@ -178,11 +285,13 @@ onMounted(() => {
   scene.add(ambientLight); // 添加环境光
   scene.add(createAxesHelper()); // 添加坐标轴辅助
   scene.add(createGridHelper()); // 添加坐标轴辅助
-
-  addMesh(); // 添加立方体
+  console.log(scene);
+  // addMesh(); // 添加立方体
+  createLine(); // 创建线
+  // createTriangle(); // 创建三角形
+  // addSprite(); // 添加sprite精灵
   // 左键点击事件
   container.value.addEventListener("click", clickScene, false);
-  console.log(new THREE.Matrix4());
   // resize自适应
   window.addEventListener(
     "resize",
@@ -204,6 +313,8 @@ onMounted(() => {
     stats.update(); // 开始性能监视器
     controls.update();
     const frameT = clock.getDelta();
+    shaderMaterial.uniforms.u_time.value = clock.getElapsedTime();
+
     // 更新播放器相关的时间
     if (mixer) {
       mixer.update(frameT); // 更新动画

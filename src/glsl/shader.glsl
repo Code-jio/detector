@@ -1,8 +1,8 @@
 // 创建三角形，并赋予渐变材质
 // 定点着色器：
-attribute vec4 a_Position;
-attribute vec2 a_TexCoord;
-varying vec2 v_TexCoord;
+attribute vec4 a_Position; // 接收顶点坐标
+varying  vec2 a_TexCoord; // 接收纹理坐标
+varying vec2 v_TexCoord; // 传递纹理坐标
 void main(){
     gl_Position=a_Position;
     v_TexCoord=a_TexCoord;

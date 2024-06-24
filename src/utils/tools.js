@@ -1,4 +1,4 @@
-import * as THREE from 'three';
+import * as THREE from "three";
 
 export const random = (min, max) =>
   Math.floor(Math.random() * (max - min + 1) + min);
@@ -46,6 +46,4 @@ export const getTransformMatrix4 = (m1, m2) => {
 
 // 输入：角度 Number
 // 输出：弧度
-export const degToRad = (angle) => {
-  return (angle * Math.PI) / 180;
-};
+export const degToRad = (angle) => (angle * Math.PI) / 180;

@@ -16,25 +16,26 @@
 <script setup>
 import { onMounted, reactive, ref } from 'vue'
 import * as THREE from 'three';
-import Stats from 'three/examples/js/libs/stats.min.js';
+import  Stats from 'three/examples/js/libs/stats.min.js';
 import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls.js';
 import { GLTFLoader } from 'three/examples/jsm/loaders/GLTFLoader.js';
 import * as TWEEN from '@tweenjs/tween.js';
 import { random } from '@/utils/tools.js';
+import { subclip } from '../utils/subclip';
 
 let stats, renderer, scene
-
+console.log(THREE);
 // 创建相机
 const camera = new THREE.PerspectiveCamera(45, window.innerWidth / window.innerHeight, 0.1, 100000);
 camera.updateProjectionMatrix(); // 更新相机投影矩阵
-camera.position.set(100, 100, -100); // 设置相机位置
-camera.lookAt(0, 0, 0); // 设置相机焦点
+camera.position.set(500, 500, 500); // 设置相机位置
+camera.lookAt(0, 1, 0); // 设置相机焦点
 
 // const url = "/gltf/chache/chache-1.gltf"
 // const url = "/gltf/test/duiduoji-1.gltf"
-// const url = "/gltf/Horse.glb"
+const url = "/gltf/Horse.glb"
 // const url = "/gltf/Duck/glTF/Duck.gltf"
-const url = "/gltf/RobotExpressive/RobotExpressive.glb"
+// const url = "/gltf/RobotExpressive/RobotExpressive.glb"
 
 let mixer
 let time = ref(1000)
@@ -122,7 +123,7 @@ const addModel = () => {
     const loader = new GLTFLoader(); // 创建gltf加载器
     loader.load(url, (gltf) => { // 加载模型
         const model = gltf.scene; // 获取模型
-        model.scale.set(10, 10, 10); // 设置模型缩放
+        model.scale.set(1, 1, 1); // 设置模型缩放
         model.position.set(0, 0, 0); // 设置模型位置
         model.rotation.set(0, 0, 0); // 设置模型旋转
         model.name = 'chache'; // 设置模型名称
@@ -134,15 +135,21 @@ const addModel = () => {
         model.actions = actions; // 将模型动画列表添加到模型对象上
         animate_List.splice(0, animate_List.length, ...actions); // 将动画列表添加到动画列表数组中
         // 播放动画
-        time.value = animate_List[2]._clip.duration * 1000;
-        value.value = animate_List[2].time;
-        current_animate_options.push(animate_List[2]); // 将当前动画添加到当前动画列表中
+        time.value = animate_List[0]._clip.duration * 1000;
+        value.value = animate_List[0].time;
+        current_animate_options.push(animate_List[0]); // 将当前动画添加到当前动画列表中
         setMaxTime(current_animate_options); // 设置最大播放秒数
 
-        frameNum.value = animate_List[2]._clip.tracks[0].times.length - 1; // 设置帧数
+        frameNum.value = animate_List[0]._clip.tracks[0].times.length - 1; // 设置帧数
+        console.log(animate_List[0]._clip);
 
-        // console.log(actions);
-
+        // 裁剪动画
+        // let arr = THREE.AnimationUtils.getKeyframeOrder(animate_List[0]._clip.tracks[0].times);
+        // const clip = THREE.AnimationUtils.arraySlice(arr, 1, 6);
+        // console.log();
+        // let clip = subclip(animate_List[0]._clip, 'test', 0, 15);
+        // console.log(clip);
+        // mixer.clipAction(clip).play();
     });
 }
 
@@ -205,7 +212,7 @@ const clickScene = (event) => {
         console.log(obj);
         if (getActions(obj)) {
             animate_List.splice(0, animate_List.length, ...getActions(obj));
-            // console.log(getActions(obj));
+            console.log(getActions(obj));
         }
     }
 }
@@ -213,7 +220,7 @@ const clickScene = (event) => {
 // 动画播放
 const play = () => {
     // 同一模型的两个动画同时播放
-    animate_List[2].paused = false;
+    animate_List[0].paused = false;
     Promise.all([
         current_animate_options.forEach((item) => {
             animationStart(item);
@@ -227,8 +234,19 @@ const play = () => {
 
 // 动画开始
 const animationStart = (AnimationAction) => {
+    // 动画倒放
+    if (AnimationAction.time === 0) {
+        AnimationAction.time = AnimationAction.getClip().duration;
+    }
+
+    AnimationAction.reset(); // 动画重置
+    // AnimationAction.timeScale = -2; // 动画播放速度
+    AnimationAction.setEffectiveTimeScale(2); // 动画播放速度
     AnimationAction.clampWhenFinished = true; // 动画播放完毕后是否保持最后一帧
-    // AnimationAction.loop = THREE.LoopOnce; // 动画循环方式
+    AnimationAction.loop = THREE.LoopRepeat; // 动画循环方式
+    AnimationAction.repetitions = 10; // 动画重复次数
+    console.log(AnimationAction.getClip())
+
     if (AnimationAction.paused) {
         AnimationAction.paused = false
     } else {
@@ -243,7 +261,7 @@ const pause = () => {
         // animate_List[0].paused = true,
         // animate_List[2].paused = true
         current_animate_options.forEach((item) => {
-            item.paused = true;
+            item.paused = !item.paused;
         })
     ]).then(() => {
         console.log('动画暂停');
@@ -252,13 +270,6 @@ const pause = () => {
     })
 
 }
-
-// 动画暂停
-const animationPause = (AnimationAction) => {
-    AnimationAction.paused = true
-}
-
-
 
 // 拖曳进度条
 const drag = () => {

@@ -2,18 +2,12 @@ const path = require('path');
 
 const AutoImport = require('unplugin-auto-import/webpack');
 const Components = require('unplugin-vue-components/webpack');
-const {
-  ElementPlusResolver
-} = require('unplugin-vue-components/resolvers');
+const { ElementPlusResolver } = require('unplugin-vue-components/resolvers');
 
 const ESLintWebpackPlugin = require('eslint-webpack-plugin');
 const HtmlWebpackPlugin = require('html-webpack-plugin');
-const {
-  VueLoaderPlugin
-} = require('vue-loader');
-const {
-  DefinePlugin
-} = require('webpack');
+const { VueLoaderPlugin } = require('vue-loader');
+const { DefinePlugin } = require('webpack');
 
 // 返回处理样式的loader函数
 const getStyleLoader = (pre) => {
@@ -42,6 +36,7 @@ module.exports = {
     chunkFilename: 'static/js/[name].chunk.js',
     assetModuleFilename: 'static/media/[hash:10][query]',
   },
+  
   module: {
     rules: [
       // 处理css
@@ -100,12 +95,14 @@ module.exports = {
         //   // 输出文件位置：  assets/models/文件
         //   outputPath: 'assets/models',
         // },
-        use: [{
-          loader: 'file-loader',
-          options: {
-            outputPath: 'assets/models/',
+        use: [
+          {
+            loader: 'file-loader',
+            options: {
+              outputPath: 'assets/models/',
+            },
           },
-        }, ],
+        ],
       },
     ],
   },
@@ -157,10 +154,11 @@ module.exports = {
     },
   },
   devServer: {
-    host: 'localhost',
+    host: '192.168.1.11',
     port: 3000,
     open: true,
     hot: true,
+    https: false,
     historyApiFallback: true, // 解决react-router刷新
   },
 };

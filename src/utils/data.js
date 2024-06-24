@@ -1,6 +1,6 @@
 let modelList = [
   {
-    name: '动画变形球',
+    name: 'AnimatedMorphSphere',
     url: './gltf/AnimatedMorphSphere/glTF/AnimatedMorphSphere.gltf',
     visible: false,
     count: 0,
@@ -11,7 +11,7 @@ let modelList = [
     animationList: ['自旋转', '自由运动', 'Globe'],
   },
   {
-    name: '炸弹',
+    name: 'BoomBox',
     url: './gltf/BoomBox/glTF/BoomBox.gltf',
     visible: false,
     count: 0,
@@ -22,7 +22,7 @@ let modelList = [
     animationList: ['自旋转', '自由运动'],
   },
   {
-    name: '马',
+    name: 'Horse',
     url: './gltf/Horse.glb',
     visible: false,
     count: 0,
@@ -33,7 +33,7 @@ let modelList = [
     animationList: ['自由运动', '自旋转', 'horse_A_'],
   },
   {
-    name: '人',
+    name: 'CesiumMan',
     url: './gltf/CesiumMan/glTF/CesiumMan.gltf',
     visible: false,
     count: 0,
@@ -66,7 +66,7 @@ let modelList = [
     ],
   },
   {
-    name: '卡车',
+    name: 'CesiumMilkTruck',
     url: './gltf/CesiumMilkTruck/glTF/CesiumMilkTruck.gltf',
     type: 'glTF',
     currentCartoon: '',
@@ -77,7 +77,7 @@ let modelList = [
     animationList: ['自由运动', '自旋转', 'animation_0', 'animation_1'],
   },
   {
-    name: '机器人',
+    name: 'Bot_Skinned',
     url: './gltf/BotSkinned/glTF-MaterialsUnlit/Bot_Skinned.gltf',
     type: 'glTF',
     currentCartoon: '',
@@ -89,7 +89,7 @@ let modelList = [
   },
 
   {
-    name: '损坏头盔',
+    name: 'DamagedHelmet',
     url: './gltf/DamagedHelmet/glTF/DamagedHelmet.gltf',
     type: 'glTF',
     currentCartoon: '',
@@ -100,7 +100,7 @@ let modelList = [
     animationList: ['自由运动', '自旋转'],
   },
   {
-    name: '鸭子',
+    name: 'Duck',
     url: './gltf/Duck/glTF/Duck.gltf',
     type: 'glTF',
     currentCartoon: '',
@@ -111,7 +111,7 @@ let modelList = [
     animationList: ['自由运动', '自旋转'],
   },
   {
-    name: '李佩里史密斯',
+    name: 'LeePerrySmith',
     url: './gltf/LeePerrySmith/LeePerrySmith.glb',
     type: 'glTF',
     currentCartoon: '',
@@ -123,7 +123,7 @@ let modelList = [
   },
 
   {
-    name: '金属粗糙球',
+    name: 'MetalRoughSpheres',
     url: './gltf/MetalRoughSpheres/glTF/MetalRoughSpheres.gltf',
     type: 'glTF',
     currentCartoon: '',
@@ -134,7 +134,7 @@ let modelList = [
     animationList: ['自由运动', '自旋转'],
   },
   {
-    name: '怪物',
+    name: 'Monster',
     url: './gltf/Monster/glTF/Monster.gltf',
     type: 'glTF',
     currentCartoon: '',
@@ -180,7 +180,7 @@ let modelList = [
     ],
   },
   {
-    name: '奈芙蒂蒂',
+    name: 'Nefertiti',
     url: './gltf/Nefertiti/Nefertiti.glb',
     type: 'glTF',
     currentCartoon: '',
@@ -191,7 +191,7 @@ let modelList = [
     animationList: ['自由运动', '自旋转'],
   },
   {
-    name: '轮廓盒子',
+    name: 'OutlinedBox',
     url: './gltf/OutlinedBox/OutlinedBox.gltf',
     type: 'glTF',
     currentCartoon: '',
@@ -202,7 +202,7 @@ let modelList = [
     animationList: ['自由运动', '自旋转'],
   },
   {
-    name: '机器人',
+    name: 'RobotExpressive',
     url: './gltf/RobotExpressive/RobotExpressive.glb',
     type: 'glTF',
     currentCartoon: '',
@@ -230,7 +230,7 @@ let modelList = [
     ],
   },
   {
-    name: '树',
+    name: 'tree',
     url: './gltf/tree/tree.glb',
     type: 'glTF',
     currentCartoon: '',
@@ -251,7 +251,7 @@ let modelList = [
   //   scale: 10,
   // },
   {
-    name: '火烈鸟',
+    name: 'Flamingo',
     url: './gltf/Flamingo.glb',
     type: 'glTF',
     currentCartoon: '',
@@ -272,7 +272,7 @@ let modelList = [
   //   scale: 10,
   // },
   {
-    name: '鹦鹉',
+    name: 'Parrot',
     url: './gltf/Parrot.glb',
     type: 'glTF',
     currentCartoon: '',
@@ -283,7 +283,7 @@ let modelList = [
     animationList: ['自由运动', '自旋转', 'parrot_A_'],
   },
   {
-    name: '主驱动',
+    name: 'PrimaryIonDrive',
     url: './gltf/PrimaryIonDrive.glb',
     type: 'glTF',
     currentCartoon: '',
@@ -294,7 +294,7 @@ let modelList = [
     animationList: ['自由运动', '自旋转', 'Main'],
   },
   {
-    name: '简单皮肤',
+    name: 'SimpleSkinning',
     url: './gltf/SimpleSkinning.gltf',
     type: 'glTF',
     currentCartoon: '',
@@ -316,7 +316,7 @@ let modelList = [
     animationList: ['自由运动', '自旋转'],
   },
   {
-    name: '士兵',
+    name: 'Soldier',
     url: './gltf/Soldier.glb',
     type: 'glTF',
     currentCartoon: '',
@@ -327,7 +327,7 @@ let modelList = [
     animationList: ['自由运动', '自旋转', 'Idle', 'Run', 'TPose', 'Walk'],
   },
   {
-    name: '鹳',
+    name: 'Stork',
     url: './gltf/Stork.glb',
     type: 'glTF',
     currentCartoon: '',
@@ -364,6 +364,13 @@ let geometryList = [
   {
     name: '精灵',
     type: 'Sprite',
+    visible: false,
+    count: 0,
+    scale: 1,
+  },
+  {
+    name: '几何体嵌套',
+    type: 'NestedGeometry',
     visible: false,
     count: 0,
     scale: 1,

@@ -20,6 +20,26 @@
                 <el-input v-model="params.gutter" placeholder="个数" clearable type="number" :step="10" :min="0" />
             </div>
 
+            <div class="slider-demo-block">
+                <span class="demonstration">纹理类型:</span>
+                <el-select v-model="params.material" placeholder="纹理类型">
+                    <el-option v-for="item in materialList" :key="item.type" :label="item.type"
+                        :value="item.type" />
+                </el-select>
+            </div>
+
+            <div class="slider-demo-block">
+                <span class="demonstration">纹理分辨率:</span>
+                <el-select v-model="params.materialRatio" placeholder="选择分辨率">
+                    <el-option v-for="(item, index) in resolutionList" :key="index" :label="item.lable"
+                        :value="item.value" />
+                </el-select>
+            </div>
+
+            <div class="slider-demo-block" v-if="currentValue.type !== 'Sprite'">
+                <span class="demonstration">随机材质:</span>
+                <el-switch v-model="params.randomMaterial" />
+            </div>
             <div class="slider-demo-block" v-if="currentValue.type !== 'Sprite'">
                 <span class="demonstration">材质共享:</span>
                 <el-switch v-model="params.shareMaterial" />
@@ -29,6 +49,8 @@
                 <!-- <el-switch v-model="params.shareMaterial" /> -->
                 <el-switch v-model="params.merge" class="mb-2" />
             </div>
+
+
 
             <!-- 挤压几何体设置 -->
             <div class="slider" v-if="currentValue.type === 'ExtrudeGeometry'">
@@ -129,11 +151,31 @@
                 <div class="slider-demo-block" v-if="spriteSettings.type === '图片纹理'">
                     <span class="demonstration">图片分辨率:</span>
                     <el-select v-model="spriteSettings.resolution" placeholder="选择分辨率">
-                        <el-option v-for="(item, index) in spriteSelectList.resolutionList" :key="index" :label="item.lable"
-                            :value="item" />
+                        <el-option v-for="(item, index) in spriteSelectList.resolutionList" :key="index"
+                            :label="item.lable" :value="item" />
                     </el-select>
                 </div>
 
+            </div>
+
+            <!-- 嵌套几何体 -->
+            <div class="slider" v-if="currentValue.type === 'NestedGeometry'">
+                <div class="slider-demo-block">
+                    <span class="demonstration">是否嵌套:</span>
+                    <el-switch v-model="NestedGeometrySettings.nest" class="mb-2" active-text="是" inactive-text="否" />
+                </div>
+                <div class="slider-demo-block">
+                    <span class="demonstration">数量:</span>
+                    <el-input v-model="NestedGeometrySettings.count" placeholder="个数" clearable type="number"
+                        :step="100" :min="0" />
+                </div>
+                <div class="slider-demo-block">
+                    <span class="demonstration">纹理类型:</span>
+                    <el-select v-model="NestedGeometrySettings.type" placeholder="纹理类型">
+                        <el-option v-for="item in NestedGeometrySettings.typeList" :key="item" :label="item.type"
+                            :value="item.type" />
+                    </el-select>
+                </div>
             </div>
 
             <el-form-item>
@@ -188,6 +230,32 @@ const spriteSettings = reactive({
     },
     color: 'rgba(255, 69, 0, 0.68)',
 })
+// 几何体嵌套配置
+const NestedGeometrySettings = reactive({
+    nest: true,
+    count: 0,
+    type: "MeshStandardMaterial",
+    typeList: [{
+        type: "MeshBasicMaterial"
+    }, {
+        type: "MeshDepthMaterial"
+    }, {
+        type: "MeshLambertMaterial"
+    }, {
+        type: "MeshMatcapMaterial"
+    }, {
+        type: "MeshNormalMaterial"
+    }, {
+        type: "MeshPhongMaterial"
+    }, {
+        type: "MeshPhysicalMaterial"
+    }, {
+        type: "MeshStandardMaterial"
+    }, {
+        type: "MeshToonMaterial"
+    }],
+})
+
 // 精灵参数
 const spriteSelectList = reactive({
     type: ["图片纹理", "自定义Canvas", "颜色纹理"],
@@ -247,6 +315,31 @@ const spriteSelectList = reactive({
         }
     ]
 })
+
+let resolutionList = [
+    {
+        lable: "256×256",
+        value: 256
+    },
+    {
+        lable: "512×512",
+        value: 512
+    },
+    {
+        lable: "1024×1024",
+        value: 1024
+    }
+]
+
+const materialList = [
+    {
+        type: "MeshBasicMaterial"
+    },
+    {
+        type: "MeshStandardMaterial"
+    },
+]
+
 // 表单参数
 const params = reactive({
     gutter: 10, // 间距
@@ -255,9 +348,13 @@ const params = reactive({
     merge: false, // 渲染方式
     visible: true, // 是否渲染
     closed: false, // 是否首尾相连
+    material: "", // 材质
+    materialRatio: "", // 材质分辨率
+    randomMaterial: false, // 是否随机材质
     tubeSettings,
     extrudeSettings,
     spriteSettings,
+    NestedGeometrySettings,
     shareMaterial: false, // 是否共享材质
 })
 
@@ -265,7 +362,7 @@ const params = reactive({
 const renderEntity = () => {
     params.currentValue = currentValue.value // 当前选中实体
     Bus.emit("createGeometry", params) // 创建实体
-    // console.log(params);
+    console.log(params);
 }
 
 // 删除所有模型

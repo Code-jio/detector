@@ -9,7 +9,7 @@
 import { ref, onMounted, onUnmounted, reactive } from "vue";
 import * as THREE from "three";
 import { OrbitControls } from "three/examples/jsm/controls/OrbitControls.js"; // 控制器
-import Stats from "three/examples/js/libs/stats.min.js";
+import  Stats from 'three/examples/js/libs/stats.min.js';
 
 // 创建画布
 const contain = ref(null);

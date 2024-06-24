@@ -14,6 +14,7 @@ import { ref, markRaw } from 'vue'
 import EntityListVue from "./EntityList"
 import ModelRender from "./ModelRender"
 import ControlItem from "./ControlItem"
+import TimeSpend from "./TimeSpend"
 
 const activeNames = ref(['模型列表']) // 默认展开的面板
 
@@ -29,6 +30,10 @@ const componentsList = ref([
     {
         name: "控制项",
         component: markRaw(ControlItem)
+    },
+    {
+        name: "时间开销",
+        component: markRaw(TimeSpend)
     },
 
 ])

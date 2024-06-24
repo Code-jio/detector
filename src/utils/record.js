@@ -1,40 +1,3 @@
-// /**
-//  * 用户操作日志结构: {
-//  *  name：'渲染',
-//  *  type: 'click',
-//  *  timestamp: new Date().getTime(),
-//  *  target: 'button',
-//  *  params: {
-//  *      ...渲染参数
-//  *  },
-//  *  real_time_perfermance: {
-//  *     FPS: 60,
-//  *     MEM: 0.1,
-//  *     Meshs:0,
-//  *     Side:0,
-//  *     Materials:0,
-//  *     Textures:0,
-//  *  },
-//  * }
-//  */
-// export const operation_log = []; // 用户操作日志
-// /**
-//  * 性能记录结构: {
-//  * time:new Date().getTime(),
-//  * FPS: 60,
-//  * MEM: 0.1,
-//  * }
-//  */
-// export const performance_record = []; // 性能记录
-// export const real_time_perfermance = {
-//   FPS: undefined,
-//   MEM: undefined,
-//   Meshs: 0,
-//   Sides: 0,
-//   Materials: 0,
-//   Textures: 0,
-// }; // 实时性能记录
-
 // 创建记录类 Record
 class Record {
   constructor() {
@@ -47,6 +10,7 @@ class Record {
       Sides: 0,
       Materials: 0,
       Textures: 0,
+      Vertices: 0,
     }; // 实时性能记录
   }
 

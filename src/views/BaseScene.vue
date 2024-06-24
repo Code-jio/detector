@@ -5,7 +5,7 @@
 <script setup>
 import { onMounted, reactive, ref } from 'vue'
 import * as THREE from 'three';
-import Stats from 'three/examples/js/libs/stats.min.js';
+import  Stats from 'three/examples/js/libs/stats.min.js';
 import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls.js';
 import { GLTFLoader } from 'three/examples/jsm/loaders/GLTFLoader.js';
 import * as TWEEN from '@tweenjs/tween.js';
@@ -92,9 +92,8 @@ const clickScene = (event) => {
     raycaster.setFromCamera(mouse, camera); // 设置射线相机和鼠标向量
     const intersects = raycaster.intersectObjects(scene.children, true); // 获取射线和模型相交的数组
     if (intersects.length > 0) { // 判断是否有相交的模型
-        const obj = intersects[0].object; // 获取相交的模型
-        console.log(obj);
-
+        const obj = intersects[0]; // 获取相交的模型
+        console.log(obj.point); // 输出相交的点
     }
 }
 

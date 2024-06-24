@@ -1,7 +1,17 @@
 /***********通用基本类1************/
+#app {
+    width: 100%;
+    height: 100%;
+    overflow: hidden;
+}
 
 /*格式化样式*/
-body,
+body{
+    margin: 0;
+    padding: 0;
+    overflow: hidden;
+}
+
 div,
 dl,
 dt,
@@ -26,7 +36,6 @@ th,
 td {
     margin: 0;
     padding: 0;
-    overflow: hidden;
 }
 
 table {

@@ -3,7 +3,7 @@
     <el-scrollbar class="list" height="300px">
         <table>
             <!-- 固定表头 -->
-            <thead>
+            <thead class="header">
                 <tr>
                     <th class="name">名称</th>
                     <th class="count">数量</th>
@@ -108,6 +108,11 @@ onMounted(() => {
 </script>
 
 <style lang="scss" scoped>
+.header{
+    font-size: 12px;
+    // 强制同行显示
+    white-space: nowrap;
+}
 table {
     width: 100%;
     height: 200px;

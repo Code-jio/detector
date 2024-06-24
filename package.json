@@ -4,7 +4,7 @@
   "description": "",
   "main": "index.js",
   "scripts": {
-    "start": "npm run dev",
+    "start": "npm run dev & node ./src/check.js",
     "dev": "cross-env NODE_ENV=development webpack serve --config ./config/webpack.dev.js --progress --color",
     "build": "cross-env NODE_ENV=production webpack --config ./config/webpack.prod.js --progress --color"
   },
@@ -46,9 +46,12 @@
     "webpack-dev-server": "^4.11.1"
   },
   "dependencies": {
+    "@theatre/core": "^0.7.0",
+    "@theatre/studio": "^0.7.0",
     "@tweenjs/tween.js": "^21.0.0",
     "echarts": "^5.4.3",
     "element-plus": "^2.3.12",
+    "fetch": "^1.1.0",
     "mitt": "^3.0.1",
     "three": "^0.105.0",
     "vue": "^3.2.44",

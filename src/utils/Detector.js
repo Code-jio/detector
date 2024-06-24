@@ -1,9 +1,20 @@
-import * as THREE from 'three';
-import Stats from 'three/examples/js/libs/stats.min.js';
-import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls.js';
-import { GLTFLoader } from 'three/examples/jsm/loaders/GLTFLoader.js';
-import * as TWEEN from '@tweenjs/tween.js';
-import { random } from '@/utils/tools.js';
+import * as THREE from "three";
+// import Stats from 'three/examples/jsm/libs/stats.module.js';
+import Stats from "three/examples/js/libs/stats.min.js";
+import { OrbitControls } from "three/examples/jsm/controls/OrbitControls.js";
+import { GLTFLoader } from "three/examples/jsm/loaders/GLTFLoader.js";
+import * as TWEEN from "@tweenjs/tween.js";
+import Bus from "@/utils/EventBus.js"; // 事件总线
+import { random } from "@/utils/tools.js";
+import {
+  CSS2DRenderer,
+  CSS2DObject,
+} from "three/examples/jsm/renderers/CSS2DRenderer.js";
+
+import {
+  CSS3DRenderer,
+  CSS3DObject,
+} from "three/examples/jsm/renderers/CSS3DRenderer.js";
 
 // 创建性能检测器：
 /**
@@ -12,27 +23,44 @@ import { random } from '@/utils/tools.js';
  * @param { Object } option 配置项
  */
 class Detector {
-  camera = null; // 相机
-  scene = null; // 场景
-  renderer = null; // 渲染器
-  stats = null; // 性能监视器
-  viewCircle = {}; // 视点圆
-  frustum = null; // 视锥体
-  controls = null; // 控制器
-  GLTFLloader = new GLTFLoader(); // 创建模型加载器
-  clock = new THREE.Clock(); // 创建时钟对象Clock
-  raycaster = new THREE.Raycaster(); // 创建射线
-  mouse = new THREE.Vector2(); // 创建鼠标向量
-  camera_frustum = null; // 视锥体相机
-  sceneInfo = {
-    side_num: 0, // 面数
-    material_num: 0, // 材质数
-    texture_num: 0, // 贴图数
-    mesh_num: 0, // 网格数
-  }; // 场景信息
-  mixers = []; // 动画播放器数组
+  constructor() {
+    this.camera = null; // 相机
+    this.scene = null; // 场景
+    this.renderer = null; // 渲染器
+    this.stats = null; // 性能监视器
+    this.viewCircle = {}; // 视点圆
+    this.frustum = null; // 视锥体
+    this.controls = null; // 控制器
+    this.GLTFLloader = new GLTFLoader(); // 创建模型加载器
+    this.clock = new THREE.Clock(); // 创建时钟对象Clock
+    this.raycaster = new THREE.Raycaster(); // 创建射线
+    this.mouse = new THREE.Vector2(); // 创建鼠标向量
+    this.camera_frustum = null; // 视锥体相机
+    this.sceneInfo = {
+      side_num: 0, // 面数
+      material_num: 0, // 材质数
+      texture_num: 0, // 贴图数
+      mesh_num: 0, // 网格数
+    }; // 场景信息
+    this.mixers = []; // 动画播放器数组
+    this.HTML2DRenderer = new CSS2DRenderer(); // HTML转2DObject
+    this.HTML3DRenderer = new CSS3DRenderer(); // HTML转3DObject
+    this.HTML2DRenderer.domElement.style.position = "absolute";
+    this.HTML2DRenderer.domElement.style.top = "-100px";
+    this.HTML2DRenderer.domElement.style.left = 0;
+    this.HTML2DRenderer.domElement.style.pointerEvents = "none"; // 2D渲染器禁止鼠标事件
 
-  constructor() {}
+    document.body.appendChild(this.HTML2DRenderer.domElement);
+
+    this.HTML3DRenderer.domElement.style.position = "absolute";
+    this.HTML3DRenderer.domElement.style.top = "-100px";
+    this.HTML3DRenderer.domElement.style.left = 0;
+    this.HTML3DRenderer.domElement.style.pointerEvents = "none"; // 3D渲染器禁止鼠标事件
+
+    document.body.appendChild(this.HTML3DRenderer.domElement);
+
+    // this.recordTiming()
+  }
 
   /**
    * 创建性能监视器
@@ -57,8 +85,8 @@ class Detector {
       canvas,
       antialias: true, // 开启硬件反走样
       alpha: true, // 背景透明
-      precision: 'highp', // 着色精度选择
-      powerPreference: 'high-performance', // 高性能模式-优先使用GPU
+      precision: "highp", // 着色精度选择
+      powerPreference: "high-performance", // 高性能模式-优先使用GPU
     }); // 创建渲染器
     this.renderer.gammaOutput = true; // 设置输出为sRGB格式
     this.renderer.physicallyCorrectLights = true; // 设置光照正确性
@@ -137,9 +165,9 @@ class Detector {
     controls.autoRotate = false; // 关闭自动旋转
     controls.enablePan = true; // 启用平移
     controls.enableRotate = true; // 启用旋转
-    controls.rotateSpeed = 0.5; // 旋转速度
+    controls.rotateSpeed = 1; // 旋转速度
     controls.zoomSpeed = 1.2; // 缩放速度
-    controls.panSpeed = 0.1; // 平移速度
+    controls.panSpeed = 0.7; // 平移速度
     controls.minDistance = 1; // 最小缩放距离
     controls.maxDistance = 100000; // 最大缩放距离
     controls.minPolarAngle = 0; // 最小仰角
@@ -204,7 +232,7 @@ class Detector {
    */
   createFrustum(option) {
     this.scene.children.forEach((item) => {
-      if (item.name === 'CameraHelper') {
+      if (item.name === "CameraHelper") {
         this.removeEntity(item);
       }
     });
@@ -225,7 +253,7 @@ class Detector {
 
     // 创建helper
     const helper = new THREE.CameraHelper(this.camera_frustum);
-    helper.name = 'CameraHelper';
+    helper.name = "CameraHelper";
     this.scene.add(helper);
 
     this.frustum.setFromMatrix(
@@ -257,7 +285,7 @@ class Detector {
     // mesh.rotation.x = -Math.PI / 2; // 设置圆形几何体旋转角度
     mesh.position.set(0, 0, 0);
     // 设置id
-    mesh.name = 'ViewCircle';
+    mesh.name = "ViewCircle";
     this.scene.add(mesh);
     return mesh;
   }
@@ -269,7 +297,7 @@ class Detector {
   removeEntity(entity) {
     // 递归遍历组对象group释放所有后代网格模型绑定几何体占用内存
     entity.traverse(function (obj) {
-      if (obj.type === 'Mesh') {
+      if (obj.isObject3D) {
         // 释放几何体所占用的内存
         if (obj.geometry) {
           obj.geometry.dispose();
@@ -280,9 +308,7 @@ class Detector {
           // 修复合并渲染之后释放材质内存出错的bug
           if (obj.material instanceof Array) {
             obj.material.forEach((item) => {
-              if (item) {
-                item.dispose();
-              }
+              if (item) item.dispose();
             });
           } else {
             obj.material.dispose();
@@ -345,7 +371,7 @@ class Detector {
    */
   createGridHelper(size, divisions) {
     const gridHelper = new THREE.GridHelper(size, divisions);
-    gridHelper.name = 'gridHelperHelper';
+    gridHelper.name = "gridHelperHelper";
     gridHelper.material.opacity = 0.2; // 设置网格透明度
     gridHelper.material.transparent = true; // 设置网格透明度
     gridHelper.position.y = 0; // 设置网格位置
@@ -365,7 +391,7 @@ class Detector {
   createAxesHelper(size) {
     const axesHelper = new THREE.AxesHelper(size);
 
-    axesHelper.name = 'AxesHelper';
+    axesHelper.name = "AxesHelper";
     return axesHelper;
   }
 
@@ -452,8 +478,8 @@ class Detector {
 
     if (intersects.length === 0) return;
     const obj = intersects[0].object; // 获取焦点对象
-    console.log(obj);
-    if (obj.type === 'Mesh') {
+    console.log(intersects);
+    if (obj.type === "Mesh") {
       // 如果焦点对象是网格模型
       // obj.material.color.set(Math.random() * 0xffffff); // 设置焦点对象的颜色
 
@@ -489,7 +515,7 @@ class Detector {
       } else {
         obj.material.color.set(Math.random() * 0xffffff); // 设置焦点对象的颜色
       }
-    } else if (obj.type === 'Sprite') {
+    } else if (obj.type === "Sprite") {
       // 如果焦点对象是精灵
       obj.material.color.set(Math.random() * 0xffffff); // 设置焦点对象的颜色
     }
@@ -518,7 +544,7 @@ class Detector {
     const obj = intersects[0].object; // 获取焦点对象
     console.log(obj);
     // 如果是普通mesh对象,则直接删除,如果是合并渲染的mesh对象,则删除对应的group
-    if (obj.type === 'Mesh') {
+    if (obj.type === "Mesh") {
       if (obj.geometry instanceof THREE.BufferGeometry) {
         // 如果焦点对象是合并渲染的网格模型，判断选中的是其中哪一个
         const face = intersects[0].face; // 获取焦点对象的face
@@ -545,7 +571,7 @@ class Detector {
       } else {
         this.removeEntity(obj);
       }
-    } else if (obj.type === 'Sprite') {
+    } else if (obj.type === "Sprite") {
       // 如果焦点对象是精灵
       this.removeEntity(obj);
     }
@@ -559,7 +585,10 @@ class Detector {
     // 查找所有的mesh、sprite、scene对象
     let item = this.scene.children.find(
       (item) =>
-        item.type === 'Mesh' || item.type === 'Sprite' || item.type === 'Scene'
+        item.type === "Mesh" ||
+        item.type === "Sprite" ||
+        item.type === "Scene" ||
+        item.type === "Group"
     );
     if (item) {
       this.removeEntity(item);
@@ -604,9 +633,9 @@ class Detector {
     `;
 
     // 关闭按钮
-    const closeBtn = dom.querySelector('.render-pannel__title__close');
-    closeBtn.addEventListener('click', () => {
-      dom.innerHTML = '';
+    const closeBtn = dom.querySelector(".render-pannel__title__close");
+    closeBtn.addEventListener("click", () => {
+      dom.innerHTML = "";
     });
   }
 
@@ -680,7 +709,7 @@ class Detector {
   createSpriteMaterial(params) {
     let material;
     // 创建图片纹理
-    if (params.type === '图片纹理') {
+    if (params.type === "图片纹理") {
       // console.log(params);
       // 创建图片对象==》修改图片分辨率==》加载图片纹理
       let img = new Image();
@@ -700,26 +729,26 @@ class Detector {
       // texture.dispose();
 
       // 创建颜色纹理
-    } else if (params.type === '颜色纹理') {
+    } else if (params.type === "颜色纹理") {
       material = new THREE.SpriteMaterial({
         color: params.color,
       });
       // 创建canvas纹理
-    } else if (params.type === '自定义Canvas') {
-      const canvas = document.createElement('canvas');
+    } else if (params.type === "自定义Canvas") {
+      const canvas = document.createElement("canvas");
       canvas.width = params.width;
       canvas.height = params.height;
-      const c = canvas.getContext('2d');
+      const c = canvas.getContext("2d");
 
       c.fillStyle = params.color;
       c.fillRect(0, 0, params.width, params.height); // 绘制矩形：左上角坐标(0,0)，宽高(256,256)
       c.beginPath(); // 文字
       // c.translate(256, 64); // 变换：平移至(256,64)
-      c.fillStyle = '#000000'; // 文本填充颜色
-      c.font = 'bold 48px 宋体'; // 字体样式设置
-      c.textBaseline = 'middle'; // 文本与fillText定义的纵坐标
-      c.textAlign = 'center'; // 文本居中(以fillText定义的横坐标)
-      c.fillText('自定义Canvas', params.width / 2, params.height / 2); // 文本填充内容，坐标为(0,0)
+      c.fillStyle = "#000000"; // 文本填充颜色
+      c.font = "bold 48px 宋体"; // 字体样式设置
+      c.textBaseline = "middle"; // 文本与fillText定义的纵坐标
+      c.textAlign = "center"; // 文本居中(以fillText定义的横坐标)
+      c.fillText("自定义Canvas", params.width / 2, params.height / 2); // 文本填充内容，坐标为(0,0)
 
       material = new THREE.SpriteMaterial({
         map: new THREE.CanvasTexture(canvas),
@@ -732,13 +761,28 @@ class Detector {
    * 创建立方体
    * @returns { Object } geometry: 几何体, material: 材质
    */
-  createGeometry() {
-    const geometry = new THREE.BoxGeometry(2, 2, 2);
-    // 材质设置为随机颜色
-    const material = new THREE.MeshPhongMaterial({
-      // 随机颜色
-      color: Math.random().toFixed(6) * 0xffffff,
-    });
+  createGeometry(params) {
+    // 命名为256 n.png(分辨率为256的第n张png图片)
+    const geometry = new THREE.BoxGeometry(5, 5, 5);
+    let material;
+    let imgUrl = require(`../assets/${params.materialRatio}.png`);
+    // 判断是否需要随机图片纹理
+    if (params.randomMaterial) {
+      // 1024_ (1).png
+      imgUrl = require(`../assets/${params.materialRatio}/${
+        params.materialRatio
+      } (${random(1, 330)}).png`);
+    }
+
+    if (params.material == "MeshBasicMaterial") {
+      material = new THREE.MeshBasicMaterial({
+        map: new THREE.TextureLoader().load(imgUrl),
+      });
+    } else if (params.material == "MeshStandardMaterial") {
+      material = new THREE.MeshStandardMaterial({
+        map: new THREE.TextureLoader().load(imgUrl),
+      });
+    }
 
     // const cube = new THREE.Mesh(geometry, material);
     return { geometry, material };
@@ -752,7 +796,7 @@ class Detector {
   updateFrustum(params) {
     // 更新视锥体
     this.scene.children.forEach((item) => {
-      if (item.name === 'CameraHelper') {
+      if (item.name === "CameraHelper") {
         this.removeEntity(item);
       }
     });
@@ -808,7 +852,7 @@ class Detector {
   updateViewCircle(radius) {
     this.viewCircle.radius = radius;
     this.scene.traverse((item) => {
-      if (item.name === 'ViewCircle') {
+      if (item.name === "ViewCircle") {
         item.geometry = new THREE.SphereGeometry(radius, 32, 16);
         console.log(item);
       }
@@ -820,31 +864,31 @@ class Detector {
    * @param {Object} params 控制器参数
    */
   changeControl(params) {
-    if (params.value === '视锥体控制器') {
+    if (params.value === "视锥体控制器") {
       // 找到name为ViewCircle的网格对象 删除该对象
       this.scene.children.forEach((item) => {
-        if (item.name === 'ViewCircle') {
+        if (item.name === "ViewCircle") {
           this.removeEntity(item);
         }
       });
       // 创建视锥体
       this.createFrustum(params.Frustum);
-    } else if (params.value === '视点控制器') {
+    } else if (params.value === "视点控制器") {
       // 删除视锥体
       this.scene.children.forEach((item) => {
-        if (item.name === 'CameraHelper') {
+        if (item.name === "CameraHelper") {
           this.removeEntity(item);
         }
       });
       this.createViewCircle(params.radius); // 创建视点球
-    } else if (params.value === '正常渲染') {
+    } else if (params.value === "正常渲染") {
       // 清除视点球，清除视锥体
       this.scene.children.forEach((item) => {
-        if (item.name === 'CameraHelper' || item.name === 'ViewCircle') {
+        if (item.name === "CameraHelper" || item.name === "ViewCircle") {
           this.removeEntity(item);
         }
         // 恢复所有模型的可见性
-        if (item.type === 'Mesh') {
+        if (item.type === "Mesh") {
           item.visible = true;
         }
       });
@@ -880,6 +924,7 @@ class Detector {
 
         gltf.scene.position.set(random(-1000, 1000), 0, random(-1000, 1000));
 
+        Bus.emit("modelload", gltf.scene); // 初始化数据
         // 材质共享
         if (params.isShare) {
           // 找到同名模型,如果存在同名模型，则将同名模型的各个mesh的材质取出压入栈中，再逐一取出赋值给新模型  ===> 实现同名模型共享材质
@@ -909,7 +954,7 @@ class Detector {
         const mixer = new THREE.AnimationMixer(gltf.scene); // 创建动画播放器
         this.mixers.push(mixer); // 将动画播放器压入栈中
         // 如果需要渲染的目标模型参数中包含了需要渲染的动画，那就从gltf对象中找出对应的动画并渲染它
-        if (params.currentCartoon === '自旋转') {
+        if (params.currentCartoon === "自旋转") {
           const animation = new TWEEN.Tween(gltf.scene.rotation)
             .to(
               {
@@ -919,7 +964,7 @@ class Detector {
             )
             .repeat(Infinity)
             .start();
-        } else if (params.currentCartoon === '自由运动') {
+        } else if (params.currentCartoon === "自由运动") {
           const animation = new TWEEN.Tween(gltf.scene.position)
             .to(
               {
@@ -941,7 +986,7 @@ class Detector {
       },
       null,
       (e) => {
-        console.log('加载失败', e);
+        console.log("加载失败", e);
       }
     );
   }
@@ -987,7 +1032,7 @@ class Detector {
         false // 是否闭合
       ); // 创建管道缓冲几何体
 
-      let texture = new THREE.TextureLoader().load(require('@/assets/1.jpg')); // 加载贴图
+      let texture = new THREE.TextureLoader().load(require("@/assets/1.jpg")); // 加载贴图
       let material = new THREE.MeshPhongMaterial({
         map: texture,
       }); // 材质对象Material
@@ -996,6 +1041,260 @@ class Detector {
       meshList.push(mesh);
     }
     return meshList;
+  }
+
+  // 标签转化2D对象
+  html22DObject(html) {
+    let obj = new CSS2DObject(html);
+
+    this.scene.add(obj);
+    // 渲染器重定位
+    this.HTML2DRenderer.setSize(window.innerWidth, window.innerHeight);
+    this.HTML2DRenderer.render(this.scene, this.camera);
+    this.HTML2DRenderer.domElement.style.position = "absolute";
+    this.HTML2DRenderer.domElement.style.top = "-100px";
+    this.HTML2DRenderer.domElement.style.left = 0;
+    this.HTML2DRenderer.domElement.style.pointerEvents = "none"; // 2D渲染器禁止鼠标事件
+
+    document.body.appendChild(this.HTML2DRenderer.domElement);
+    console.log(this.HTML2DRenderer.domElement);
+    return obj;
+  }
+
+  // 标签转化3D对象并返回
+  HTML23DObject(html) {
+    let obj = new CSS3DObject(html);
+
+    // 渲染器重定位
+    this.HTML3DRenderer.setSize(window.innerWidth, window.innerHeight);
+    this.HTML3DRenderer.render(this.scene, this.camera);
+    this.HTML3DRenderer.domElement.style.position = "absolute";
+    this.HTML3DRenderer.domElement.style.top = 0;
+    this.HTML3DRenderer.domElement.style.left = 0;
+    this.HTML3DRenderer.domElement.style.pointerEvents = "none"; // 3D渲染器禁止鼠标事件
+
+    document.body.appendChild(this.HTML3DRenderer.domElement);
+    console.log(this.HTML3DRenderer.domElement);
+    return obj;
+  }
+
+  // 记录各项加载时间
+  recordTiming() {
+    function getTiming() {
+      setTimeout(() => {
+        let t = window.performance.timing;
+        let performanceInfo = [
+          {
+            key: "Redirect",
+            desc: "网页重定向的耗时",
+            "value(ms)": t.redirectEnd - t.redirectStart,
+          },
+          {
+            key: "AppCache",
+            desc: "检查本地缓存的耗时",
+            "value(ms)": t.domainLookupStart - t.fetchStart,
+          },
+          {
+            key: "DNS",
+            desc: "DNS查询的耗时",
+            "value(ms)": t.domainLookupEnd - t.domainLookupStart,
+          },
+          {
+            key: "TCP",
+            desc: "TCP链接的耗时",
+            "value(ms)": t.connectEnd - t.connectStart,
+          },
+          {
+            key: "Waiting(TTFB)",
+            desc: "从客户端发起请求到接收响应的时间",
+            "value(ms)": t.responseStart - t.requestStart,
+          },
+          {
+            key: "Content Download",
+            desc: "下载服务端返回数据的时间",
+            "value(ms)": t.responseEnd - t.responseStart,
+          },
+          {
+            key: "HTTP Total Time",
+            desc: "http请求总耗时",
+            "value(ms)": t.responseEnd - t.requestStart,
+          },
+          {
+            key: "First Time",
+            desc: "首包时间",
+            "value(ms)": t.responseStart - t.domainLookupStart,
+          },
+          {
+            key: "White screen time",
+            desc: "白屏时间",
+            "value(ms)": t.responseEnd - t.fetchStart,
+          },
+          {
+            key: "Time to Interactive(TTI)",
+            desc: "首次可交互时间",
+            "value(ms)": t.domInteractive - t.fetchStart,
+          },
+          {
+            key: "DOM Parsing",
+            desc: "DOM 解析耗时",
+            "value(ms)": t.domInteractive - t.responseEnd,
+          },
+          {
+            key: "DOMContentLoaded",
+            desc: "DOM 加载完成的时间",
+            "value(ms)": t.domInteractive - t.navigationStart,
+          },
+          {
+            key: "Loaded",
+            desc: "页面load的总耗时",
+            "value(ms)": t.loadEventEnd - t.navigationStart,
+          },
+        ];
+
+        console.table(performanceInfo);
+      }, 0);
+    }
+
+    window.addEventListener("load", getTiming, false);
+  }
+
+  /**
+   * 获取已加载的3D模型列表，并去除重复项
+   * @returns {Array} modelList
+   */
+  get3DModelList() {
+    let modelList = [];
+    this.scene.children.forEach((item) => {
+      if (item.type === "Scene") {
+        modelList.push(item);
+      }
+    });
+
+    // 去除ModelList中重复的模型
+    modelList = modelList.filter((item, index, self) => {
+      return self.findIndex((t) => t.name === item.name) === index;
+    });
+    return modelList;
+  }
+
+  /**
+   * 获取模型的材质信息
+   * @param { Scene || Array} model 模型
+   * @returns {Array} materialList
+   */
+  getModelMaterialInfo(model) {
+    if (model === undefined || model === null) return;
+
+    let arr = [];
+    if (model instanceof Array) {
+      model.forEach((item) => {
+        // item为模型
+        let objInfo = this.parseModelMaterial(item);
+        arr.push(objInfo);
+      });
+    } else {
+      let objInfo = this.parseModelMaterial(model);
+      arr.push(objInfo);
+    }
+    return arr;
+  }
+
+  /**
+   * 获取模型的材质信息
+   * @param {scene} scene 解析三维场景对象
+   */
+  parseModelMaterial(scene) {
+    if (scene === undefined || scene === null) return;
+    let info = {
+      name: scene.name, // 模型名称
+      materialList: [],
+      textureList: [],
+      mapList: [],
+      children: [],
+    };
+    scene.traverse((item) => {
+      // item为模型子构件
+      if (item.material) {
+        if (item.material instanceof Array) {
+          item.material.forEach((m) => {
+            info.materialList.push(m);
+            for (let key in m) {
+              if (m[key] instanceof THREE.Texture) {
+                info.textureList.push(m[key]);
+                if (m[key].image) {
+                  info.mapList.push(m[key].image);
+                }
+              }
+            }
+          });
+        } else {
+          info.materialList.push(item.material);
+          // 检查item.material底下属性是否有Texture类型的值
+          for (let key in item.material) {
+            if (item.material[key] instanceof THREE.Texture) {
+              // materialList.push(item.material[key]);
+              info.textureList.push(item.material[key]);
+              if (item.material[key].image) {
+                info.mapList.push(item.material[key].image);
+              }
+            }
+          }
+        }
+      }
+    });
+
+    // 根据uuid去除重复的材质、纹理、贴图
+    info.materialList = info.materialList.filter((item, index, self) => {
+      return self.findIndex((t) => t.uuid === item.uuid) === index;
+    });
+
+    info.textureList = info.textureList.filter((item, index, self) => {
+      return self.findIndex((t) => t.uuid === item.uuid) === index;
+    });
+
+    info.mapList = info.mapList.filter((item, index, self) => {
+      return self.findIndex((t) => t.src === item.src) === index;
+    });
+
+    // 统计贴图信息
+    for (let i = 0; i < info.textureList.length; i++) {
+      let texture = info.textureList[i];
+      let map = info.mapList[i];
+
+      if (map) {
+        let src = map.src.split("/")[map.src.split("/").length - 1];
+        let obj = {
+          name: texture.name,
+          uuid: texture.uuid,
+          src,
+          size: {
+            width: map.width,
+            height: map.height,
+          },
+          length: this.getImageSize(map.src),
+        };
+        info.children.push(obj);
+      }
+    }
+
+
+    info.materialCount = info.materialList.length; // 材质数量
+    info.textureCount = info.textureList.length; // 纹理数量
+    info.mapCount = info.mapList.length; // 贴图数量
+
+    return info;
+  }
+
+  // 获取场景中加载的所有模型的材质纹理贴图信息
+  getSceneModelInfo() {
+    let result;
+    let modelList = this.get3DModelList();
+    result = this.getModelMaterialInfo(modelList);
+    return result;
+  }
+
+  getImageSize(url) {
+
   }
 }
 

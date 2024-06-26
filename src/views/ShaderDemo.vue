@@ -5,7 +5,7 @@
 <script setup>
 import { onMounted, reactive, ref } from 'vue'
 import * as THREE from 'three';
-import  Stats from 'three/examples/js/libs/stats.min.js';
+import Stats from 'three/examples/js/libs/stats.min.js';
 import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls.js';
 import { GLTFLoader } from 'three/examples/jsm/loaders/GLTFLoader.js';
 import * as TWEEN from '@tweenjs/tween.js';
@@ -16,14 +16,14 @@ let stats, renderer, scene
 // 创建相机
 const camera = new THREE.PerspectiveCamera(45, window.innerWidth / window.innerHeight, 0.1, 100000);
 camera.updateProjectionMatrix(); // 更新相机投影矩阵
-camera.position.set(100, 100, -100); // 设置相机位置
+camera.position.set(0, 200, 0); // 设置相机位置
 camera.lookAt(0, 0, 0); // 设置相机焦点
 
 const url = "/gltf/chache/chache-1.gltf"
 // const url = "/gltf/test/duiduoji-1.gltf"
 // const url = "/gltf/Horse.glb"
 
-let mixer
+let mixer, shader
 let time = ref(1000)
 const clock = new THREE.Clock();// 创建时钟对象Clock
 const container = ref(null) // 画布dom
@@ -90,17 +90,15 @@ const createGridHelper = () => {
 
 // 添加mesh立方体
 const addMesh = () => {
-    const geometry = new THREE.BoxGeometry(10, 10, 10); // 创建立方体几何体
-    const material = new THREE.MeshLambertMaterial({ // 创建材质
-        color: 0x0000ff,
-        transparent: true, // 设置材质透明
-        // opacity: 0.5, // 设置材质透明度
-    });
-    let ShaderMaterial = getShaderMaterial(); // 创建shader材质
-    const mesh = new THREE.Mesh(geometry, ShaderMaterial); // 创建立方体网格模型
-    mesh.name = 'mesh'; // 设置立方体网格模型名称
-    mesh.position.set(0, 0, 0); // 设置立方体网格模型位置
-    scene.add(mesh); // 添加立方体网格模型到场景
+    shader = getShaderMaterial(); // 创建shader材质
+    const geometry = new THREE.PlaneGeometry(100, 100); // 创建几何体
+    const mesh = new THREE.Mesh(geometry, shader); // 创建网格模型
+    scene.add(mesh); // 添加网格模型到场景
+
+    // mesh平铺在xOz平面上
+    mesh.rotation.x = -Math.PI / 2;
+    mesh.position.y = 1;
+    return mesh;
 }
 
 
@@ -114,22 +112,124 @@ const sleep = (time) => {
 }
 
 // 创建shader材质
-function getShaderMaterial() {
-    const shader = new THREE.ShaderMaterial({
-        vertexShader: `
-            void main(){
+const getShaderMaterial = () => {
+    let texture = createCanvasTexture(); // 创建纹理
 
+    const shader = new THREE.ShaderMaterial({
+        uniforms: {
+            time: { value: 0 }, // 时间
+            mouse: { value: new THREE.Vector2(0.0, 0.0) },
+            resolution: { value: new THREE.Vector2(window.innerWidth, window.innerHeight) },
+            texture: { value: texture }, // 传入纹理
+            // startAngle: { value: 0.0 }, // 起始角度
+            // endAngle: { value: 0.5 }, // 结束角度   
+        },
+        vertexShader: `
+            varying vec2 vUv; // 传递纹理坐标
+            void main(){
+                vUv = uv; // 纹理坐标赋值给vUv
                 gl_Position = projectionMatrix * viewMatrix * modelMatrix * vec4(position,1.0 );
             }
         `,
+        // 像素颜色随时间变化
         fragmentShader: `
-            void main(){
-                gl_FragColor = vec4(1.0,0.0,0.0,0.5);
+        // 定义π值
+        #define PI 3.14159265359
+        
+        varying vec2 vUv;
+        uniform float time;
+        uniform vec2 mouse;
+        uniform vec2 resolution;
+        uniform sampler2D texture;
+
+        // 绘制圆形 smoothstep 带毛边
+        float circle_smoothstep(vec2 st, vec2 center, float radius) {
+            float dis = distance(st, center); // 计算纹理坐标和圆心的距离
+            return smoothstep(radius - 0.01, radius + 0.01, dis); 
+        }
+
+        // 绘制圆形 step 带毛边
+        float circle_step(vec2 st, vec2 center, float radius){
+            float dis = distance(st, center); // 计算纹理坐标和圆心的距离
+            return step(radius, dis); // 绘制圆形
+        }
+
+        // 绘制扇形
+        float sector(vec2 st, vec2 center, float startAngle, float endAngle, float radius){
+            float dis = distance(st, center); // 计算纹理坐标和圆心的距离
+            float angle = atan(st.y - center.y, st.x - center.x); // 计算纹理坐标和圆心的角度
+            float sector = step(radius, dis) * step(startAngle, angle) * (1.0 - step(endAngle, angle)); // 绘制扇形
+            return sector;
+        }
+
+        // 绘制主函数
+        void main(){
+            vec2 uv = vUv; // 纹理坐标
+            vec2 center = vec2(0.5); // 圆心
+            float radius = 0.4; // 半径
+            // 绘制圆环
+            float circle_small = circle_smoothstep(uv, center, radius);
+            float circle_max = circle_step(uv, center, radius + 0.02);
+            float circle = circle_small - circle_max; // 用小圆减去大圆
+            circle = 1.0 - circle; // 反转颜色
+            // vec4 circle_color = vec4(vec3(circle), 0) + vec4(0.0, 0.0, 0.7, 0.2); // 设置颜色
+
+            // 创建两个半径不同扇形
+            float radius_sector = 0.3;
+            float sector1 = sector(uv, center, 0.5 * PI, 1.8 * PI, radius_sector);
+            float sector2 = sector(uv, center, 0.5 * PI, 1.8 * PI, radius_sector - 0.03);
+            float sector = sector1 - sector2; // 用小扇形减去大扇形
+            // sector = 1.0 - sector; // 反转颜色
+            // 这段弧线颜色渐变
+            // vec4 sector_color = vec4(vec3(sector), 0) + vec4(0.0, 0.0, 0.7, 0.5); // 设置颜色
+
+            float shape = max(sector, circle); // 取sector_color与circle_color的并集
+
+            // 取sector_color与circle_color的并集
+            // vec4 Fan_And_Ring = sector_color + circle_color; // 取并集
+            // vec4 Fan_And_Ring = max(sector_color, circle_color); // 取并集
+
+            vec4 Fan_And_Ring = vec4(vec3(shape), 0) + vec4(0.0, 0.0, 0.7, 0.3); // 设置颜色
+
+            // 绘制纹理
+            vec4 color = texture2D(texture, uv);
+            if (color.a < 0.7) {
+                gl_FragColor = Fan_And_Ring; // 设置颜色
+            } else {
+                gl_FragColor = color; // 设置颜色
             }
+        }
         `,
         side: THREE.DoubleSide, // 设置材质的两面都可见
-    })
+        transparent: true, // 启用透明度
+    });
     return shader;
+}
+
+// 创建canvas纹理
+const createCanvasTexture = () => {
+    const canvas = document.createElement('canvas');
+    canvas.width = 256;
+    canvas.height = 256;
+    const ctx = canvas.getContext('2d');
+    // 设置文字样式
+    ctx.font = '48px serif';
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+
+    // 在在四个方向上绘制"东南西北" 正上方：北，正下方：南，正左方：西，正右方：东
+    // 北字为红色，其余为蓝色
+    ctx.fillStyle = "#dd7675"
+    ctx.fillText('北', 128, 32);
+
+    ctx.fillStyle = '#244ecf';
+    ctx.fillText('南', 128, 224);
+    ctx.fillText('西', 32, 128);
+    ctx.fillText('东', 224, 128);
+
+    const texture = new THREE.CanvasTexture(canvas);
+    texture.needsUpdate = true;
+    return texture;
 }
 
 // 射线拾取
@@ -165,7 +265,7 @@ onMounted(() => {
 
     renderer.backgroundColor = new THREE.Color(0x000000); // 设置渲染器背景颜色
 
-    addMesh() // 添加立方体
+    let mesh = addMesh() // 添加立方体
     // 左键点击事件
     container.value.addEventListener('click', clickScene, false);
     console.log(new THREE.Matrix4())
@@ -188,7 +288,13 @@ onMounted(() => {
     const render = () => {
         stats.update(); // 开始性能监视器
         controls.update();
-        const frameT = clock.getDelta();
+        let frameT = clock.getDelta();
+
+        // 获取自上次调用.elapsedTime()以来经过的时间
+        let elapsedTime = clock.getElapsedTime();
+        // 更新shader的time变量
+        shader.uniforms.time.value = elapsedTime;
+        // mesh.lookAt(camera.position); // 立方体始终朝向相机
         // 更新播放器相关的时间
         if (mixer) {
             mixer.update(frameT); // 更新动画

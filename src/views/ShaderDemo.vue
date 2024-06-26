@@ -91,6 +91,7 @@ const createGridHelper = () => {
 // 添加mesh立方体
 const addMesh = () => {
     shader = getShaderMaterial(); // 创建shader材质
+    // shader = createShader(); // 创建shader材质
     const geometry = new THREE.PlaneGeometry(100, 100); // 创建几何体
     const mesh = new THREE.Mesh(geometry, shader); // 创建网格模型
     scene.add(mesh); // 添加网格模型到场景
@@ -172,24 +173,42 @@ const getShaderMaterial = () => {
             float circle_max = circle_step(uv, center, radius + 0.02);
             float circle = circle_small - circle_max; // 用小圆减去大圆
             circle = 1.0 - circle; // 反转颜色
-            // vec4 circle_color = vec4(vec3(circle), 0) + vec4(0.0, 0.0, 0.7, 0.2); // 设置颜色
+            vec4 circle_color = vec4(vec3(circle), 0) + vec4(0.0, 0.0, 0.7, 0.2); // 设置颜色
 
-            // 创建两个半径不同扇形
+            // 创建两个半径不同扇形 
             float radius_sector = 0.3;
-            float sector1 = sector(uv, center, 0.5 * PI, 1.8 * PI, radius_sector);
-            float sector2 = sector(uv, center, 0.5 * PI, 1.8 * PI, radius_sector - 0.03);
-            float sector = sector1 - sector2; // 用小扇形减去大扇形
-            // sector = 1.0 - sector; // 反转颜色
-            // 这段弧线颜色渐变
-            // vec4 sector_color = vec4(vec3(sector), 0) + vec4(0.0, 0.0, 0.7, 0.5); // 设置颜色
+            float startAngle = 0.5 * PI;
+            float endAngle = 1.8 * PI;
+            float sector1 = sector(uv, center, startAngle, endAngle, radius_sector);
+            float sector2 = sector(uv, center, startAngle, endAngle, radius_sector - 0.03);
 
-            float shape = max(sector, circle); // 取sector_color与circle_color的并集
+            // 用小扇形减去大扇形得到圆弧线
+            float sector = sector1 - sector2; 
 
+            // 计算当前像素点的角度
+            vec2 dir = uv - center;
+            float angle = atan(dir.y, dir.x);
+            if (angle < 0.0) {
+                angle += 2.0 * PI;
+            }
+
+            // 定义颜色渐变的起始和结束颜色
+            vec4 startColor = vec4(1.0, 0.0, 0.0, 1.0); // 红色
+            vec4 endColor = vec4(0.0, 0.0, 1.0, 1.0); // 蓝色
+
+            // 计算颜色渐变的比例
+            float t = (angle - startAngle) / (endAngle - startAngle);
+
+            // 使用mix函数计算颜色 clamp函数限制t的范围在0.0到1.0之间
+            vec4 sector_color = mix(startColor, endColor, clamp(t, 0.0, 1.0));
+            sector_color = sector_color * sector; // 取sector_color与circle_color的并集
+
+            
             // 取sector_color与circle_color的并集
-            // vec4 Fan_And_Ring = sector_color + circle_color; // 取并集
             // vec4 Fan_And_Ring = max(sector_color, circle_color); // 取并集
+            // vec4 Fan_And_Ring = vec4(vec3(shape), 0) + vec4(0.0, 0.0, 0.7, 0.3); // 设置颜色
+            vec4 Fan_And_Ring = sector_color + circle_color; // 取并集
 
-            vec4 Fan_And_Ring = vec4(vec3(shape), 0) + vec4(0.0, 0.0, 0.7, 0.3); // 设置颜色
 
             // 绘制纹理
             vec4 color = texture2D(texture, uv);
@@ -199,6 +218,56 @@ const getShaderMaterial = () => {
                 gl_FragColor = color; // 设置颜色
             }
         }
+        `,
+        side: THREE.DoubleSide, // 设置材质的两面都可见
+        transparent: true, // 启用透明度
+    });
+    return shader;
+}
+
+// sdf距离场
+const createShader = () => {
+    const shader = new THREE.ShaderMaterial({
+        uniforms: {
+            time: { value: 0 }, // 时间
+        },
+        vertexShader: `
+            varying vec2 vUv; // 传递纹理坐标
+            void main(){
+                vUv = uv; // 纹理坐标赋值给vUv
+                gl_Position = projectionMatrix * viewMatrix * modelMatrix * vec4(position,1.0 );
+            }
+        `,
+        // 像素颜色随时间变化
+        fragmentShader: `
+            // 定义π值
+            #define PI 3.14159265359
+            
+            varying vec2 vUv;
+            
+            // 利用有向距离场 绘制扇形
+            float SDF_Pie (vec2 st, float angle, float radius) {
+                float angle2 = angle + PI / 4.0; // 扇形的角度
+                vec2 dir = vec2(cos(angle), sin(angle)); // 扇形的方向
+                vec2 dir2 = vec2(cos(angle2), sin(angle2)); // 扇形的方向
+                vec2 p = st - 0.5;
+                float d = max(dot(normalize(p), dir), dot(normalize(p), dir2)); // 计算距离
+                return d - radius;
+            }
+
+            // 绘制主函数
+            void main(){
+                vec2 uv = vUv; // 纹理坐标
+                vec2 center = vec2(0.5); // 圆心
+                float radius = 0.4; // 半径
+                float angle = PI / 4.0; // 角度
+                float sector = SDF_Pie(uv, angle, radius); // 绘制扇形
+
+                vec4 sector_color = vec4(vec3(sector), 1.0);
+
+                gl_FragColor = sector_color; // 设置颜色
+            }
+           
         `,
         side: THREE.DoubleSide, // 设置材质的两面都可见
         transparent: true, // 启用透明度

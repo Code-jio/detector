@@ -59,7 +59,7 @@ import * as THREE from "three";
 import Bus from "@/utils/EventBus.js"; // 事件总线
 // import MathUtils from "three/js/utils/MathUtils.js";
 // let math = THREE.MathUtils;
-console.log(THREE.Math);
+// console.log(THREE.Math);
 let angle = ref(0);
 let mat4 = reactive([
   [1, 0, 0, 0],
@@ -132,9 +132,9 @@ watch(
     // 应用欧拉角 newval是一个对象，对应绕x,y,z轴旋转的角度
     // 角度转弧度
     Euler.set(
-      THREE.Math.degToRad(newVal.x),
-      THREE.Math.degToRad(newVal.y),
-      THREE.Math.degToRad(newVal.z),
+      THREE.MathUtils.degToRad(newVal.x),
+      THREE.MathUtils.degToRad(newVal.y),
+      THREE.MathUtils.degToRad(newVal.z),
       "XYZ"
     );
     // 欧拉角转四元数

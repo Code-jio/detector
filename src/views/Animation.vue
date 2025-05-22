@@ -16,7 +16,7 @@
 <script setup>
 import { onMounted, reactive, ref } from 'vue'
 import * as THREE from 'three';
-import Stats from 'three/examples/js/libs/stats.min.js';
+import Stats from 'stats.js';
 import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls.js';
 import { GLTFLoader } from 'three/examples/jsm/loaders/GLTFLoader.js';
 import * as TWEEN from '@tweenjs/tween.js';

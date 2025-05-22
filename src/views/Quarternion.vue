@@ -8,7 +8,7 @@
 <script setup>
 import { onMounted, reactive, ref } from "vue";
 import * as THREE from "three";
-import Stats from "three/examples/js/libs/stats.min.js";
+import Stats from "stats.js";
 import { OrbitControls } from "three/examples/jsm/controls/OrbitControls.js";
 import MathTranslate from "../components/MathTranslate.vue";
 import Bus from "@/utils/EventBus.js"; // 事件总线

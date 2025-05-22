@@ -11,7 +11,7 @@
 <script setup>
 import { ref, onMounted, onUnmounted, reactive } from "vue";
 import * as THREE from "three";
-import { BufferGeometryUtils } from "three/examples/jsm/utils/BufferGeometryUtils.js";
+import { mergeGeometries } from "three/examples/jsm/utils/BufferGeometryUtils.js";
 import { GLTFLoader } from "three/examples/jsm/loaders/GLTFLoader.js";
 import * as TWEEN from '@tweenjs/tween.js'
 
@@ -21,19 +21,24 @@ import CollapsePanel from "@/components/CollapsePanel";
 import { random, distanceBetweenTwoPoints } from '@/utils/tools.js';
 import Record from "@/utils/record.js";
 import Detector from "@/utils/Detector.js";
+import SceneStats from "@/utils/SceneStats.js";
 // console.log(Record);
 // 创建画布
 const contain = ref(null);
 // 创建性能监视器
 const stateContain = ref(null);
-// const panel = ref(null);
 const scene_info = ref(null);
 
 let canvas, state, stats, renderer, controls, light;
-let side_num = ref(0); // 面数
-let material_num = ref(0); // 材质数
-let texture_num = ref(0); // 贴图数
-let mesh_num = ref(0); // 贴图数
+// 场景统计数据
+let sceneStats = reactive({
+    meshes: 0,
+    vertices: 0,
+    faces: 0,
+    triangles: 0,
+    materials: 0,
+    textures: 0
+});
 
 let frustumParams = reactive({
     ClippingPlane: [1, 1000],
@@ -57,7 +62,6 @@ const mixers = []; // 动画列表
 const GLTFLloader = new GLTFLoader(); // 创建模型加载器
 // const detector = new Detector(); // 创建检测器
 window.Detector = Detector;
-
 
 const scene = Detector.createScene({
     color: new THREE.Color(0xffffff),
@@ -118,110 +122,31 @@ Bus.on("changeControl", (e) => {
     }
 })
 
-// 递归方式计算场景内的所有实体的网格数、面数、材质数、贴图数 （geometry、sprite）
-const getSideMaterialTextureNum = () => {
-    let side = 0; // 面数
-    let material = 0; // 材质数
-    let texture = 0; // 贴图数
-    let mesh = 0; // 网格数
-
-    // 递归遍历场景对象scene的子对象group
-    scene.traverse(function (obj) {
-        // 网格模型对象
-        if (obj.isMesh) {
-            // console.log(obj);
-            // 考虑合并渲染之后的情况
-            // 1.如果是合并渲染的网格模型
-            if (obj.geometry instanceof THREE.BufferGeometry) {
-                // 网格数
-                mesh += 1;
-                side += obj.geometry.attributes.position.count / 3; // 累加面数
-                // 如果有多种材质
-                if (obj.material instanceof Array) {
-                    material += obj.material.length; // 累加材质数
-                    obj.material.forEach((item) => {
-                        if (item) {
-                            texture += item.map ? 1 : 0;
-                        }
-                    })
-                } else {
-                    // 单材质
-                    material += 1;
-                    // 如果有贴图
-                    texture += obj.material.map ? 1 : 0;
-                }
-                // 2.如果是普通网格模型
-            } else {
-                mesh += 1;
-                side += obj.geometry ? obj.geometry.faces.length : 0; // 累加面数
-                // 如果有多种材质
-                if (obj.material instanceof Array) {
-                    material += obj.material.length; // 累加材质数
-                    obj.material.forEach((item) => {
-                        if (item) {
-                            texture += item.map ? 1 : 0;
-                        }
-                    })
-                } else {
-                    // 单材质
-                    material += 1;
-                    // 如果有贴图
-                    texture += obj.material.map ? 1 : 0;
-                }
-            }
-        } else if (obj.isSprite) {
-            // 精灵对象
-            mesh += 1; // 网格数
-            side += 1; // 累加面数
-            material += 1; // 累加材质数
-            texture += obj.material.map ? 1 : 0; // 累加贴图数
-        } else if (obj.isScene) {
-            // 如果是场景对象（gltf模型）
-            // 递归计算gltf模型的面数、材质数、贴图数、网格数
-            obj.traverse(function (item) {
-                // 新方法计算gltf模型的面数、材质数、贴图数、网格数
-                if (item.isMesh) {
-                    // 考虑合并渲染之后的情况
-                    // 1.如果是合并渲染的网格模型
-                    if (item.geometry instanceof THREE.BufferGeometry) {
-                        // 网格数
-                        mesh += 1;
-                        side += item.geometry.attributes.position.count / 3; // 累加面数
-                        if (item.material instanceof Array) {
-                            item.material.forEach((item) => {
-                                if (item) {
-                                    texture += item.map ? 1 : 0;
-                                }
-                            })
-                            material += item.material.length; // 累加材质数
-                        } else {
-                            material += 1
-                        }
-
-                        // 2.如果是普通网格模型
-                    } else {
-                        mesh += 1;
-                        side += item.geometry ? item.geometry.faces.length : 0; // 累加面数
-                        material += 1; // 累加材质数
-                        texture += item.material.map ? 1 : 0; // 累加贴图数
-                    }
-                }
-            })
-        }
-    })
-    side_num.value = side.toFixed(0);
-    material_num.value = material.toFixed(0);
-    texture_num.value = texture.toFixed(0);
-    mesh_num.value = mesh.toFixed(0);
-}
-
 // 监听场景变化
 const onSceneChange = () => {
-    getSideMaterialTextureNum();
-    // 更新页面中的面数、材质数、贴图数
-    scene_info.value = document.querySelector(".scene_info");
-    scene_info.value.innerHTML = `网格数:${mesh_num.value}，面数：${side_num.value}，材质数：${material_num.value}，贴图数：${texture_num.value}`;
-}
+    const stats = SceneStats.update(scene);
+    sceneStats.meshes = stats.meshes;
+    sceneStats.vertices = stats.vertices;
+    sceneStats.faces = stats.faces;
+    sceneStats.triangles = stats.triangles;
+    sceneStats.materials = stats.materials;
+    sceneStats.textures = stats.textures;
+    
+    // 更新页面中的统计信息
+    if (scene_info.value) {
+        scene_info.value.innerHTML = SceneStats.getFormattedStats();
+    }
+
+    // 更新性能记录
+    if (Record.real_time_perfermance) {
+        Record.real_time_perfermance.Meshs = stats.meshes;
+        Record.real_time_perfermance.Vertices = stats.vertices;
+        Record.real_time_perfermance.Faces = stats.faces;
+        Record.real_time_perfermance.Triangles = stats.triangles;
+        Record.real_time_perfermance.Materials = stats.materials;
+        Record.real_time_perfermance.Textures = stats.textures;
+    }
+};
 
 // 监听场景变化
 timer = setInterval(() => {
@@ -230,10 +155,15 @@ timer = setInterval(() => {
 
 // 统计信息初始化
 Bus.on("dataInit", () => {
-    side_num.value = 0;
-    material_num.value = 0;
-    texture_num.value = 0;
-    mesh_num.value = 0;
+    SceneStats.reset();
+    Object.assign(sceneStats, {
+        meshes: 0,
+        vertices: 0,
+        faces: 0,
+        triangles: 0,
+        materials: 0,
+        textures: 0
+    });
 });
 
 // 合并网格对象 统一渲染
@@ -264,10 +194,7 @@ const mergeRender = (params) => {
                 }
                 meshList.push(BufferGeometry);
             }
-            geometry = BufferGeometryUtils.mergeBufferGeometries(
-                meshList,
-                true,
-            );
+                        geometry = mergeGeometries(                meshList,                true,            );
 
 
             break;
@@ -292,7 +219,7 @@ const mergeRender = (params) => {
                 }
             }
 
-            geometry = BufferGeometryUtils.mergeBufferGeometries(
+            geometry = mergeGeometries(
                 meshList,
                 true
             );
@@ -347,7 +274,7 @@ const mergeRender = (params) => {
                 })
             }
 
-            geometry = BufferGeometryUtils.mergeBufferGeometries(
+            geometry = mergeGeometries(
                 meshList,
                 true
             );
@@ -784,10 +711,12 @@ onMounted(() => {
                 // 记录实时性能
                 Record.real_time_perfermance.FPS = count;
                 Record.real_time_perfermance.MEM = MEM;
-                Record.real_time_perfermance.Meshs = mesh_num.value;
-                Record.real_time_perfermance.Sides = side_num.value;
-                Record.real_time_perfermance.Materials = material_num.value;
-                Record.real_time_perfermance.Textures = texture_num.value;
+                Record.real_time_perfermance.Meshs = sceneStats.meshes;
+                Record.real_time_perfermance.Vertices = sceneStats.vertices;
+                Record.real_time_perfermance.Faces = sceneStats.faces;
+                Record.real_time_perfermance.Triangles = sceneStats.triangles;
+                Record.real_time_perfermance.Materials = sceneStats.materials;
+                Record.real_time_perfermance.Textures = sceneStats.textures;
                 prevTimestamp = timestamp;
                 count = 0;
             }
@@ -819,9 +748,7 @@ onUnmounted(() => {
     window.removeEventListener("resize", () => { }); // 移除窗口变化监听
     window.removeEventListener("click", () => { }); // 移除点击事件监听
     window.removeEventListener("contextmenu", () => { }); // 移除右键点击事件监听
-    side_num.value = 0; // 面数
-    material_num.value = 0; // 材质数
-    texture_num.value = 0; // 贴图数
+    SceneStats.reset(); // 重置场景统计
     Detector.clearAll(); // 清空场景
     timer = null; // 清除定时器
 });

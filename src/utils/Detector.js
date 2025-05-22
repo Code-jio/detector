@@ -1,5 +1,5 @@
 import * as THREE from 'three';
-import Stats from 'three/examples/js/libs/stats.min.js';
+import Stats from 'stats.js';
 import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls.js';
 import { GLTFLoader } from 'three/examples/jsm/loaders/GLTFLoader.js';
 import * as TWEEN from '@tweenjs/tween.js';
@@ -29,6 +29,9 @@ class Detector {
     material_num: 0, // 材质数
     texture_num: 0, // 贴图数
     mesh_num: 0, // 网格数
+    light_num: 0, // 光源数
+    vertex_num: 0, // 顶点数
+    face_num: 0, // 面数
   }; // 场景信息
   mixers = []; // 动画播放器数组
 
@@ -598,6 +601,18 @@ class Detector {
           <div class="render-pannel__content__item">
             <span>网格数：</span>
             <span>${this.sceneInfo.mesh_num}</span>
+          </div>
+          <div class="render-pannel__content__item">
+            <span>光源数：</span>
+            <span>${this.sceneInfo.light_num}</span>
+          </div>
+          <div class="render-pannel__content__item">
+            <span>顶点数：</span>
+            <span>${this.sceneInfo.vertex_num}</span>
+          </div>
+          <div class="render-pannel__content__item">
+            <span>面数：</span>
+            <span>${this.sceneInfo.face_num}</span>
           </div>
         </div>
       </div>

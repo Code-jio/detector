@@ -40,7 +40,7 @@ export default createRouter({
         import('@/views/BaseScene.vue'),
     },
     {
-      path: '/quarter',
+      path: '/quarternion',
       component: () =>
         import('@/views/Quarternion.vue'),
     },

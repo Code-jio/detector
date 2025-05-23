@@ -134,31 +134,61 @@ class Detector {
    */
   createOrbitControls(camera, canvas) {
     const controls = new OrbitControls(camera, canvas);
-    controls.enableDamping = true; // 启用阻尼效果
-    controls.dampingFactor = 0.3; // 阻尼系数
+    
+    // 基础控制设置
+    // controls.enableDamping = true; // 启用阻尼效果
+    // controls.dampingFactor = 0.05; // 阻尼系数（降低以获得更流畅的体验）
+    
+    // 功能开关
     controls.enableZoom = true; // 启用缩放
-    controls.autoRotate = false; // 关闭自动旋转
     controls.enablePan = true; // 启用平移
     controls.enableRotate = true; // 启用旋转
-    controls.rotateSpeed = 0.5; // 旋转速度
+    controls.autoRotate = false; // 关闭自动旋转
+    
+    // 速度设置
+    controls.rotateSpeed = 1.0; // 旋转速度
     controls.zoomSpeed = 1.2; // 缩放速度
-    controls.panSpeed = 0.1; // 平移速度
+    // controls.panSpeed = 2.0; // 平移速度（提高以便更明显的移动）
+    
+    // 平移设置（关键修复）
+    controls.screenSpacePanning = true; // 启用屏幕空间平移（重要！）
+    
+    // 距离限制
     controls.minDistance = 1; // 最小缩放距离
     controls.maxDistance = 100000; // 最大缩放距离
+    
+    // 角度限制
     controls.minPolarAngle = 0; // 最小仰角
     controls.maxPolarAngle = Math.PI; // 最大仰角
     controls.minAzimuthAngle = -Infinity; // 最小方位角
     controls.maxAzimuthAngle = Infinity; // 最大方位角
-    controls.screenSpacePanning = false; // 屏幕空间平移
-    controls.maxZoom = Infinity; // 最大缩放
-    controls.minZoom = 0; // 最小缩放
+    
+    // 缩放限制（用于正交相机）
+    controls.minZoom = 0.1; // 最小缩放
+    controls.maxZoom = 10; // 最大缩放
+    
+    // 键盘控制
     controls.enableKeys = true; // 启用键盘控制
     controls.keys = {
-      LEFT: 37, // 左键
-      UP: 38, // 上键
-      RIGHT: 39, // 右键
-      BOTTOM: 40, // 下键
+      LEFT: 'ArrowLeft', // 左键
+      UP: 'ArrowUp', // 上键
+      RIGHT: 'ArrowRight', // 右键
+      BOTTOM: 'ArrowDown', // 下键
     };
+    
+    // 鼠标按键映射（确保正确的鼠标控制）
+    controls.mouseButtons = {
+      LEFT: THREE.MOUSE.ROTATE,  // 左键旋转
+      MIDDLE: THREE.MOUSE.DOLLY, // 中键缩放
+      RIGHT: THREE.MOUSE.PAN     // 右键平移
+    };
+    
+    // 触摸控制
+    controls.touches = {
+      ONE: THREE.TOUCH.ROTATE,   // 单指旋转
+      TWO: THREE.TOUCH.DOLLY_PAN // 双指缩放和平移
+    };
+    
     controls.target.set(0, 0, 0); // 设置控制器的焦点
     controls.update(); // 更新控制器
 
@@ -266,37 +296,132 @@ class Detector {
   }
 
   /**
-   * 移除实体
+   * 移除实体并彻底释放内存资源
    * @param {Object} entity
    */
   removeEntity(entity) {
-    // 递归遍历组对象group释放所有后代网格模型绑定几何体占用内存
-    entity.traverse(function (obj) {
-      if (obj.type === 'Mesh') {
+    if (!entity) return;
+    
+    // 递归遍历组对象group释放所有后代对象绑定的资源
+    entity.traverse((obj) => {
+      // 处理网格模型
+      if (obj.type === 'Mesh' || obj.type === 'SkinnedMesh') {
         // 释放几何体所占用的内存
         if (obj.geometry) {
           obj.geometry.dispose();
           obj.geometry = null;
         }
+        
         // 释放材质所占用的内存
         if (obj.material) {
-          // 修复合并渲染之后释放材质内存出错的bug
-          if (obj.material instanceof Array) {
-            obj.material.forEach((item) => {
-              if (item) {
-                item.dispose();
-              }
-            });
-          } else {
-            obj.material.dispose();
-          }
+          this._disposeMaterial(obj.material);
           obj.material = null;
         }
       }
+      
+      // 处理精灵对象
+      else if (obj.type === 'Sprite') {
+        if (obj.material) {
+          this._disposeMaterial(obj.material);
+          obj.material = null;
+        }
+      }
+      
+      // 处理线条对象
+      else if (obj.type === 'Line' || obj.type === 'LineLoop' || obj.type === 'LineSegments') {
+        if (obj.geometry) {
+          obj.geometry.dispose();
+          obj.geometry = null;
+        }
+        if (obj.material) {
+          this._disposeMaterial(obj.material);
+          obj.material = null;
+        }
+      }
+      
+      // 处理点云对象
+      else if (obj.type === 'Points') {
+        if (obj.geometry) {
+          obj.geometry.dispose();
+          obj.geometry = null;
+        }
+        if (obj.material) {
+          this._disposeMaterial(obj.material);
+          obj.material = null;
+        }
+      }
+      
+      // 清理动画相关资源
+      if (obj.mixer) {
+        obj.mixer.stopAllAction();
+        obj.mixer = null;
+      }
+      
+      // 清理骨骼动画资源
+      if (obj.skeleton) {
+        obj.skeleton = null;
+      }
+      
+      // 清理用户数据
+      if (obj.userData) {
+        obj.userData = null;
+      }
     });
-    // 删除场景对象scene的子对象group
-    this.scene.remove(entity);
-    entity = null; // 删除变量group
+    
+    // 从场景中移除实体
+    if (entity.parent) {
+      entity.parent.remove(entity);
+    } else {
+      this.scene.remove(entity);
+    }
+  }
+
+  /**
+   * 私有方法：释放材质资源
+   * @param {Object|Array} material 材质或材质数组
+   */
+  _disposeMaterial(material) {
+    if (!material) return;
+    
+    // 处理材质数组
+    if (Array.isArray(material)) {
+      material.forEach((mat) => {
+        if (mat) {
+          this._disposeSingleMaterial(mat);
+        }
+      });
+    } else {
+      this._disposeSingleMaterial(material);
+    }
+  }
+
+  /**
+   * 私有方法：释放单个材质的所有资源
+   * @param {Object} material 材质对象
+   */
+  _disposeSingleMaterial(material) {
+    if (!material) return;
+    
+    // 释放材质中的所有纹理
+    const textureProperties = [
+      'map', 'lightMap', 'bumpMap', 'normalMap', 'specularMap',
+      'envMap', 'alphaMap', 'aoMap', 'displacementMap', 'emissiveMap',
+      'gradientMap', 'metalnessMap', 'roughnessMap', 'clearcoatMap',
+      'clearcoatNormalMap', 'clearcoatRoughnessMap', 'transmissionMap',
+      'thicknessMap', 'sheenColorMap', 'sheenRoughnessMap'
+    ];
+    
+    textureProperties.forEach((prop) => {
+      if (material[prop] && material[prop].dispose) {
+        material[prop].dispose();
+        material[prop] = null;
+      }
+    });
+    
+    // 释放材质本身
+    if (material.dispose) {
+      material.dispose();
+    }
   }
 
   /**
@@ -555,22 +680,58 @@ class Detector {
   }
 
   /**
-   * 清空场景
+   * 清空场景中加载的模型（保留辅助对象）
    * @returns {Object} object
    */
   clearAll() {
-    // 查找所有的mesh、sprite、scene对象
-    let item = this.scene.children.find(
-      (item) =>
-        item.type === 'Mesh' || item.type === 'Sprite' || item.type === 'Scene'
-    );
-    if (item) {
-      this.removeEntity(item);
-      this.scene.dispose();
-      this.clearAll();
-    } else {
-      return;
-    }
+    // 需要保留的对象名称列表
+    const keepObjectNames = [
+      'gridHelperHelper',  // 网格辅助
+      'AxesHelper',        // 坐标轴辅助
+      'CameraHelper',      // 相机辅助
+      'ViewCircle'         // 视点圆
+    ];
+
+    // 需要保留的对象类型列表
+    const keepObjectTypes = [
+      'DirectionalLight',   // 方向光
+      'AmbientLight',      // 环境光
+      'PointLight',        // 点光源
+      'SpotLight',         // 聚光灯
+      'HemisphereLight',   // 半球光
+      'RectAreaLight'      // 矩形区域光
+    ];
+
+    // 收集需要删除的对象
+    const objectsToRemove = [];
+    
+    this.scene.children.forEach((child) => {
+      // 如果是Mesh类型且不在保留名称列表中，则标记删除
+      if (child.type === 'Mesh' && !keepObjectNames.includes(child.name)) {
+        objectsToRemove.push(child);
+      }
+      // 如果是Sprite类型（通常是加载的精灵对象），则标记删除
+      else if (child.type === 'Sprite') {
+        objectsToRemove.push(child);
+      }
+      // 如果是Group类型（通常是加载的模型组），则标记删除
+      else if (child.type === 'Group') {
+        objectsToRemove.push(child);
+      }
+    });
+
+    // 批量删除标记的对象
+    objectsToRemove.forEach((obj) => {
+      this.removeEntity(obj);
+    });
+
+    // 清空动画播放器数组
+    this.mixers.forEach((mixer) => {
+      mixer.stopAllAction();
+    });
+    this.mixers = [];
+
+    console.log(`已清空 ${objectsToRemove.length} 个加载的模型对象`);
   }
 
   /**

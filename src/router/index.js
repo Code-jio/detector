@@ -7,7 +7,7 @@ export default createRouter({
   history: createWebHistory(), // hash模式：createWebHashHistory
   routes: [{
       path: '/',
-      redirect: '/shader',
+      redirect: '/home',
     },
     {
       path: '/home',

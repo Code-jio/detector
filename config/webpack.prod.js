@@ -141,7 +141,7 @@ module.exports = {
       resolvers: [ElementPlusResolver()],
     }),
   ],
-  mode: 'development',
+  mode: 'production',
   devtool: 'source-map',
   optimization: {
     splitChunks: {

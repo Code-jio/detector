@@ -163,8 +163,8 @@ const createLine = () => {
     vertices[i * 3 + 2] = random(-100, 100);
   }
 
-
-  geometry.addAttribute('position', new THREE.BufferAttribute(vertices, 3));
+  // 使用新的 setAttribute 方法替代 addAttribute
+  geometry.setAttribute('position', new THREE.BufferAttribute(vertices, 3));
   const line = new THREE.Line(geometry, shaderMaterial);
   // line.scale.set(100, 100, 100);
   scene.add(line);
@@ -182,7 +182,8 @@ const createTriangle = () => {
     1.0, 1.0, 0.0,
     -1.0, 1.0, 0.0,
   ]);
-  geometry.addAttribute('position', new THREE.BufferAttribute(vertices, 3));
+  // 使用新的 setAttribute 方法替代 addAttribute
+  geometry.setAttribute('position', new THREE.BufferAttribute(vertices, 3));
   const material = new THREE.ShaderMaterial({
     uniforms: {
       // u_resolution: { value: new THREE.Vector2(window.innerWidth, window.innerHeight) },

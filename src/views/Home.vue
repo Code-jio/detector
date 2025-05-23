@@ -520,6 +520,7 @@ const tubeClosed = (connextParams, tubeSettings) => {
 };
 
 onMounted(() => {
+    console.log("home")
     // 获取dom元素
     console.log("CollapsePanel", CollapsePanel);
     canvas = contain.value; // 获取画布

@@ -157,10 +157,10 @@ module.exports = {
     },
   },
   devServer: {
-    host: '192.168.1.15',
+    host: 'localhost',
     port: 3000,
-    open: true,
+    open: false, // Electron环境下不需要自动打开浏览器
     hot: true,
-    historyApiFallback: true, // 解决react-router刷新
+    historyApiFallback: true, // 解决vue-router刷新404问题
   },
 };

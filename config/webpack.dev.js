@@ -1,4 +1,5 @@
 const path = require('path');
+const os = require('os');
 
 const AutoImport = require('unplugin-auto-import/webpack');
 const Components = require('unplugin-vue-components/webpack');
@@ -32,6 +33,20 @@ const getStyleLoader = (pre) => {
     },
     pre,
   ].filter(Boolean); // filter(Boolean) 过滤掉undefined值
+};
+
+// 获取本机IP地址
+const getLocalIpAddress = () => {
+  const interfaces = os.networkInterfaces();
+  for (const name of Object.keys(interfaces)) {
+    for (const interface of interfaces[name]) {
+      // 跳过内部地址和非IPv4地址
+      if (interface.family === 'IPv4' && !interface.internal) {
+        return interface.address;
+      }
+    }
+  }
+  return 'localhost';
 };
 
 module.exports = {
@@ -138,6 +153,26 @@ module.exports = {
   ],
   mode: 'development',
   devtool: 'cheap-module-source-map',
+  
+  // 简化编译输出信息 (移到这里作为顶级配置)
+  stats: {
+    colors: true,
+    hash: false,
+    version: false,
+    timings: true,
+    assets: false,        // 不显示资产信息
+    chunks: false,        // 不显示代码块信息
+    modules: false,       // 不显示模块信息
+    reasons: false,       // 不显示模块被包含的原因
+    children: false,      // 不显示子编译信息
+    source: false,        // 不显示源码
+    errors: true,         // 显示错误
+    errorDetails: true,   // 显示错误详情
+    warnings: true,       // 显示警告
+    publicPath: false,    // 不显示公共路径
+    entrypoints: false,   // 不显示入口点信息
+  },
+  
   optimization: {
     splitChunks: {
       chunks: 'all',
@@ -157,10 +192,47 @@ module.exports = {
     },
   },
   devServer: {
-    host: '192.168.1.15',
+    // 使用 '0.0.0.0' 绑定所有网络接口，或者动态获取IP
+    host: '0.0.0.0',
     port: 3000,
-    open: true,
+    open: [
+      `http://localhost:3000`,
+      `http://${getLocalIpAddress()}:3000`
+    ],
     hot: true,
     historyApiFallback: true, // 解决react-router刷新
+    // 允许外部访问
+    allowedHosts: 'all',
+    // 自动检测可用端口
+    // port: 'auto',
+    
+    client: {
+      // 在控制台显示本机访问地址
+      logging: 'warn', // 只显示警告和错误，不显示信息级别的日志
+      overlay: {
+        errors: true,
+        warnings: false,
+      },
+    },
+    
+    // 启动后在控制台显示所有可访问的地址
+    onListening: function (devServer) {
+      if (!devServer) {
+        throw new Error('webpack-dev-server is not defined');
+      }
+      
+      const port = devServer.server.address().port;
+      const localIp = getLocalIpAddress();
+      
+      console.log('\n项目启动成功！可通过以下地址访问：');
+      console.log(`- 本机访问: http://localhost:${port}`);
+      console.log(`- 局域网访问: http://${localIp}:${port}`);
+      console.log(`- 外部访问: http://0.0.0.0:${port}\n`);
+    },
+  },
+  
+  // 控制基础设施日志输出
+  infrastructureLogging: {
+    level: 'warn', // 只显示警告和错误级别的基础设施日志
   },
 };

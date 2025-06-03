@@ -7,7 +7,7 @@ export default createRouter({
   history: createWebHashHistory(), // hash模式：createWebHashHistory
   routes: [{
       path: '/',
-      redirect: '/home',
+      redirect: '/webxr-test',
     },
     {
       path: '/home',
@@ -44,5 +44,10 @@ export default createRouter({
       component: () =>
         import('@/views/Quarternion.vue'),
     },
+    {
+      path: '/webxr-test',
+      name: 'WebXRTest',
+      component: () => import('@/views/WebXRTest.vue')
+    }
   ],
 });

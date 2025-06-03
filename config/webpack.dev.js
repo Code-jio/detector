@@ -138,6 +138,7 @@ module.exports = {
   ],
   mode: 'development',
   devtool: 'cheap-module-source-map',
+  stats: 'errors-warnings', // 只显示错误和警告
   optimization: {
     splitChunks: {
       chunks: 'all',
@@ -157,10 +158,71 @@ module.exports = {
     },
   },
   devServer: {
-    host: 'localhost',
+    host: '0.0.0.0', // 允许外部访问
     port: 3000,
-    open: false, // Electron环境下不需要自动打开浏览器
-    hot: true,
-    historyApiFallback: true, // 解决vue-router刷新404问题
+    open: false, 
+    hot: true, 
+    historyApiFallback: true, 
+    server: 'https', 
+    allowedHosts: 'all',
+    client: {
+      logging: 'error', // 只显示错误
+      progress: true, // 禁用进度条
+      overlay: {
+        errors: true,
+        warnings: false
+      }
+    },
+    setupMiddlewares: (middlewares, devServer) => {
+      // 自定义启动信息
+      if (!devServer) {
+        throw new Error('webpack-dev-server is not defined');
+      }
+
+      // 在服务器启动后显示访问信息
+      devServer.compiler.hooks.done.tap('ShowAccessInfo', () => {
+        const { networkInterfaces } = require('os');
+        const nets = networkInterfaces();
+        const localIPs = [];
+
+        for (const name of Object.keys(nets)) {
+          for (const net of nets[name]) {
+            if (net.family === 'IPv4' && !net.internal) {
+              localIPs.push(net.address);
+            }
+          }
+        }
+
+        console.log('\n' + '='.repeat(60));
+        console.log('🚀 VR开发服务器已启动！');
+        console.log('='.repeat(60));
+        console.log('\n📍 访问地址:');
+        console.log(`   本地访问: https://localhost:3000`);
+        
+        if (localIPs.length > 0) {
+          localIPs.forEach(ip => {
+            console.log(`   局域网访问: https://${ip}:3000`);
+          });
+        }
+        
+        console.log('\n🎯 VR场景地址:');
+        console.log(`   本地: https://localhost:3000/#/webxr-test`);
+        
+        if (localIPs.length > 0) {
+          localIPs.forEach(ip => {
+            console.log(`   局域网: https://${ip}:3000/#/webxr-test`);
+          });
+        }
+        
+        console.log('\n💡 使用提示:');
+        console.log('   • VR设备请使用局域网地址访问');
+        console.log('   • 首次访问会有证书警告，选择继续即可');
+        console.log('   • WebXR需要HTTPS环境');
+        console.log('   • 按 Ctrl+C 停止服务器');
+        console.log('\n' + '='.repeat(60) + '\n');
+      });
+
+      return middlewares;
+    },
   },
 };

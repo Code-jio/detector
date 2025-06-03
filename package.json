@@ -5,11 +5,13 @@
   "main": "electron/main.js",
   "homepage": "./",
   "scripts": {
-    "start": "npm run dev",
+    "start": "npm run vr-dev",
     "dev": "cross-env NODE_ENV=development webpack serve --config ./config/webpack.dev.js --progress --color",
+    "vr-dev": "node scripts/start-vr-dev.js",
+    "urls": "node scripts/show-urls.js",
     "build": "cross-env NODE_ENV=production webpack --config ./config/webpack.prod.js --progress --color",
     "electron": "cross-env NODE_ENV=development electron .",
-    "electron-dev": "concurrently \"npm run dev\" \"wait-on http://localhost:3000 && electron .\"",
+    "electron-dev": "concurrently \"npm run dev\" \"wait-on https://localhost:3000 --insecure && electron .\"",
     "electron-start": "node scripts/start-electron.js",
     "electron-build": "npm run build && cross-env NODE_ENV=production electron .",
     "dist": "npm run build && electron-builder",
@@ -22,6 +24,7 @@
   "license": "ISC",
   "devDependencies": {
     "@babel/eslint-parser": "^7.19.1",
+    "@types/three": "^0.177.0",
     "@vue/cli-plugin-babel": "^5.0.8",
     "babel-loader": "^9.1.0",
     "concurrently": "^7.6.0",
@@ -60,7 +63,7 @@
     "wait-on": "^7.0.1",
     "webpack": "^5.75.0",
     "webpack-cli": "^4.10.0",
-    "webpack-dev-server": "^4.11.1"
+    "webpack-dev-server": "^4.15.2"
   },
   "dependencies": {
     "@tweenjs/tween.js": "^21.0.0",

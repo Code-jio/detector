@@ -19,7 +19,9 @@ function createMainWindow() {
       nodeIntegration: false, // 安全考虑，禁用node集成
       contextIsolation: true, // 启用上下文隔离
       enableRemoteModule: false, // 禁用remote模块
-      preload: path.join(__dirname, 'preload.js') // 预加载脚本
+      preload: path.join(__dirname, 'preload.js'), // 预加载脚本
+      // 开发环境下忽略证书错误
+      webSecurity: !isDev
     },
     icon: path.join(__dirname, '../public/favicon.ico'), // 应用图标
     show: false // 先不显示，等加载完成后再显示
@@ -27,8 +29,8 @@ function createMainWindow() {
 
   // 加载应用
   if (isDev) {
-    // 开发环境加载本地服务器，明确导航到home页面
-    mainWindow.loadURL('http://localhost:3000/#/home');
+    // 开发环境加载本地HTTPS服务器，明确导航到home页面
+    mainWindow.loadURL('https://localhost:3000/#/home');
     // 打开开发者工具
     mainWindow.webContents.openDevTools();
   } else {

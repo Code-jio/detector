@@ -1,6 +1,9 @@
 const path = require('path');
 const os = require('os');
 
+// 禁用Sass的Legacy JS API警告
+process.env.SASS_SILENCE_DEPRECATIONS = '1';
+
 const AutoImport = require('unplugin-auto-import/webpack');
 const Components = require('unplugin-vue-components/webpack');
 const {
@@ -31,7 +34,22 @@ const getStyleLoader = (pre) => {
         },
       },
     },
-    pre,
+    pre && (pre === 'sass-loader' ? {
+      loader: 'sass-loader',
+      options: {
+        // 避免Legacy JS API警告的配置
+        implementation: require('sass'),
+        sourceMap: false,
+        additionalData: `$silence-deprecations: true;`,
+        sassOptions: {
+          // 禁用所有警告和弃用提示
+          quietDeps: true,
+          verbose: false,
+          silenceDeprecations: ['legacy-js-api'],
+          api: 'modern'
+        }
+      },
+    } : pre),
   ].filter(Boolean); // filter(Boolean) 过滤掉undefined值
 };
 

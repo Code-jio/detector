@@ -1,0 +1,337 @@
+{
+  "asset": {
+    "generator": "glTF-Transform v3.10.1",
+    "version": "2.0"
+  },
+  "accessors": [
+    {
+      "name": "accessorIndices",
+      "type": "SCALAR",
+      "componentType": 5123,
+      "count": 17424
+    },
+    {
+      "name": "accessorPositions",
+      "type": "VEC3",
+      "componentType": 5126,
+      "count": 6512,
+      "max": [
+        12.63396167755127,
+        0.5334039330482483,
+        5.996365547180176
+      ],
+      "min": [
+        -10.077702522277832,
+        6.103515914901436e-8,
+        -5.996367454528809
+      ]
+    },
+    {
+      "name": "accessorNormals",
+      "type": "VEC3",
+      "componentType": 5126,
+      "count": 6512
+    },
+    {
+      "name": "accessorIndices",
+      "type": "SCALAR",
+      "componentType": 5123,
+      "count": 360
+    },
+    {
+      "name": "accessorPositions",
+      "type": "VEC3",
+      "componentType": 5126,
+      "count": 240,
+      "max": [
+        12.006246566772461,
+        0.8540027737617493,
+        5.080715179443359
+      ],
+      "min": [
+        -1.8861719369888306,
+        0.004002762027084827,
+        -5.121164321899414
+      ]
+    },
+    {
+      "name": "accessorNormals",
+      "type": "VEC3",
+      "componentType": 5126,
+      "count": 240
+    },
+    {
+      "name": "accessorIndices",
+      "type": "SCALAR",
+      "componentType": 5123,
+      "count": 72294
+    },
+    {
+      "name": "accessorPositions",
+      "type": "VEC3",
+      "componentType": 5126,
+      "count": 12198,
+      "max": [
+        12.786160469055176,
+        2.399506092071533,
+        5.981723308563232
+      ],
+      "min": [
+        -12.786162376403809,
+        0.5157094597816467,
+        -5.971768856048584
+      ]
+    },
+    {
+      "name": "accessorNormals",
+      "type": "VEC3",
+      "componentType": 5126,
+      "count": 12198
+    },
+    {
+      "name": "accessorIndices",
+      "type": "SCALAR",
+      "componentType": 5123,
+      "count": 12
+    },
+    {
+      "name": "accessorPositions",
+      "type": "VEC3",
+      "componentType": 5126,
+      "count": 8,
+      "max": [
+        5.072748184204102,
+        2.3585383892059326,
+        5.528038024902344
+      ],
+      "min": [
+        -12.747426986694336,
+        0.9404735565185547,
+        -5.640026569366455
+      ]
+    },
+    {
+      "name": "accessorNormals",
+      "type": "VEC3",
+      "componentType": 5126,
+      "count": 8
+    },
+    {
+      "name": "accessorUVs",
+      "type": "VEC2",
+      "componentType": 5126,
+      "count": 8
+    }
+  ],
+  "bufferViews": [
+    {
+      "buffer": 0,
+      "byteOffset": 0,
+      "byteLength": 17920
+    },
+    {
+      "buffer": 0,
+      "byteOffset": 17920,
+      "byteLength": 560
+    },
+    {
+      "buffer": 0,
+      "byteOffset": 18480,
+      "byteLength": 52220
+    },
+    {
+      "buffer": 0,
+      "byteOffset": 70700,
+      "byteLength": 202
+    }
+  ],
+  "samplers": [
+    {
+      "magFilter": 9729,
+      "minFilter": 9987,
+      "wrapS": 10497,
+      "wrapT": 10497
+    }
+  ],
+  "textures": [
+    {
+      "sampler": 0,
+      "extensions": {
+        "EXT_texture_webp": {
+          "source": 0
+        }
+      }
+    }
+  ],
+  "images": [
+    {
+      "mimeType": "image/webp",
+      "uri": "综合广告006.webp"
+    }
+  ],
+  "buffers": [
+    {
+      "uri": "MAIN_BUILDING_3F_桌椅.bin",
+      "byteLength": 70902
+    }
+  ],
+  "materials": [
+    {
+      "name": "19 - Default",
+      "pbrMetallicRoughness": {
+        "baseColorFactor": [
+          0.6745098,
+          0.6745098,
+          0.6745098,
+          1
+        ],
+        "roughnessFactor": 0.450053632,
+        "metallicFactor": 0
+      }
+    },
+    {
+      "name": "JYHFY",
+      "pbrMetallicRoughness": {
+        "baseColorFactor": [
+          0.694117665,
+          0.647058845,
+          0.5411765,
+          1
+        ],
+        "roughnessFactor": 0.450053632,
+        "metallicFactor": 0
+      }
+    },
+    {
+      "name": "21 - Default",
+      "pbrMetallicRoughness": {
+        "baseColorFactor": [
+          0.113725491,
+          0.113725491,
+          0.113725491,
+          1
+        ],
+        "roughnessFactor": 0.450053632,
+        "metallicFactor": 0
+      }
+    },
+    {
+      "name": "23 - Default",
+      "pbrMetallicRoughness": {
+        "roughnessFactor": 0.450053632,
+        "metallicFactor": 0,
+        "baseColorTexture": {
+          "index": 0
+        }
+      }
+    }
+  ],
+  "meshes": [
+    {
+      "name": "MAIN_BUILDING_3F_桌椅",
+      "primitives": [
+        {
+          "attributes": {
+            "POSITION": 1,
+            "NORMAL": 2
+          },
+          "mode": 4,
+          "material": 0,
+          "indices": 0,
+          "extensions": {
+            "KHR_draco_mesh_compression": {
+              "bufferView": 0,
+              "attributes": {
+                "POSITION": 0,
+                "NORMAL": 1
+              }
+            }
+          }
+        },
+        {
+          "attributes": {
+            "POSITION": 4,
+            "NORMAL": 5
+          },
+          "mode": 4,
+          "material": 1,
+          "indices": 3,
+          "extensions": {
+            "KHR_draco_mesh_compression": {
+              "bufferView": 1,
+              "attributes": {
+                "POSITION": 0,
+                "NORMAL": 1
+              }
+            }
+          }
+        },
+        {
+          "attributes": {
+            "POSITION": 7,
+            "NORMAL": 8
+          },
+          "mode": 4,
+          "material": 2,
+          "indices": 6,
+          "extensions": {
+            "KHR_draco_mesh_compression": {
+              "bufferView": 2,
+              "attributes": {
+                "POSITION": 0,
+                "NORMAL": 1
+              }
+            }
+          }
+        },
+        {
+          "attributes": {
+            "POSITION": 10,
+            "NORMAL": 11,
+            "TEXCOORD_0": 12
+          },
+          "mode": 4,
+          "material": 3,
+          "indices": 9,
+          "extensions": {
+            "KHR_draco_mesh_compression": {
+              "bufferView": 3,
+              "attributes": {
+                "POSITION": 0,
+                "NORMAL": 1,
+                "TEXCOORD_0": 2
+              }
+            }
+          }
+        }
+      ]
+    }
+  ],
+  "nodes": [
+    {
+      "name": "MAIN_BUILDING_3F_桌椅",
+      "translation": [
+        88.8051,
+        6.095999,
+        32.0132675
+      ],
+      "mesh": 0
+    }
+  ],
+  "scenes": [
+    {
+      "nodes": [
+        0
+      ]
+    }
+  ],
+  "scene": 0,
+  "extensionsUsed": [
+    "KHR_draco_mesh_compression",
+    "EXT_texture_webp"
+  ],
+  "extensionsRequired": [
+    "KHR_draco_mesh_compression",
+    "EXT_texture_webp"
+  ]
+}

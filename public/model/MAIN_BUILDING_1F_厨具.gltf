@@ -1,0 +1,98 @@
+{
+  "asset": {
+    "generator": "glTF-Transform v3.10.1",
+    "version": "2.0"
+  },
+  "accessors": [
+    {
+      "name": "accessorIndices",
+      "type": "SCALAR",
+      "componentType": 5123,
+      "count": 176586
+    },
+    {
+      "name": "accessorPositions",
+      "type": "VEC3",
+      "componentType": 5126,
+      "count": 55679,
+      "max": [
+        11.797248840332031,
+        2.694514513015747,
+        3.7805635929107666
+      ],
+      "min": [
+        -11.797256469726562,
+        0,
+        -3.780562400817871
+      ]
+    },
+    {
+      "name": "accessorNormals",
+      "type": "VEC3",
+      "componentType": 5126,
+      "count": 55679
+    }
+  ],
+  "bufferViews": [
+    {
+      "buffer": 0,
+      "byteOffset": 0,
+      "byteLength": 152612
+    }
+  ],
+  "buffers": [
+    {
+      "uri": "MAIN_BUILDING_1F_厨具.bin",
+      "byteLength": 152612
+    }
+  ],
+  "meshes": [
+    {
+      "name": "MAIN_BUILDING_1F_厨具",
+      "primitives": [
+        {
+          "attributes": {
+            "POSITION": 1,
+            "NORMAL": 2
+          },
+          "mode": 4,
+          "indices": 0,
+          "extensions": {
+            "KHR_draco_mesh_compression": {
+              "bufferView": 0,
+              "attributes": {
+                "POSITION": 0,
+                "NORMAL": 1
+              }
+            }
+          }
+        }
+      ]
+    }
+  ],
+  "nodes": [
+    {
+      "name": "MAIN_BUILDING_1F_厨具",
+      "translation": [
+        89.277565,
+        0.09999988,
+        31.64513
+      ],
+      "mesh": 0
+    }
+  ],
+  "scenes": [
+    {
+      "nodes": [
+        0
+      ]
+    }
+  ],
+  "scene": 0,
+  "extensionsUsed": [
+    "KHR_draco_mesh_compression"
+  ],
+  "extensionsRequired": [
+    "KHR_draco_mesh_compression"
+  ]
+}

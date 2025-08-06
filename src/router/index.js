@@ -44,5 +44,15 @@ export default createRouter({
       component: () =>
         import('@/views/Quarternion.vue'),
     },
+    {
+      path: '/modelView',
+      component: () =>
+        import('@/views/ModelView.vue'),
+    },
+    {
+      path: '/Cloud',
+      component: () =>
+        import('@/views/Cloud.vue'),
+    }
   ],
 });

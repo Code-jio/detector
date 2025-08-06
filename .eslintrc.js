@@ -6,6 +6,10 @@ module.exports = {
   extends: ['plugin:vue/vue3-essential', 'eslint:recommended'],
   parserOptions: {
     parser: '@babel/eslint-parser',
+    requireConfigFile: false,
+    babelOptions: {
+      presets: ['@babel/preset-env']
+    }
   },
   rules: {
     'no-console': 'off',

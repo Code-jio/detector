@@ -101,11 +101,11 @@ const clickScene = (event) => {
 }
 
 const createCloud = () => { 
-    const size = 128;
+    const size = 128; // 立方体的大小
     const data = new Uint8Array( size * size * size );
 
     let i = 0;
-    const scale = 0.05;
+    const scale = 0.05; // 降低scale值会产生更大的烟雾纹理
     const perlin = new ImprovedNoise();
     const vector = new THREE.Vector3();
 
@@ -124,12 +124,12 @@ const createCloud = () => {
         }
 
     }
-
-    const texture = new THREE.Data3DTexture( data, size, size, size );
+    const texture = new THREE.Data3DTexture( data, size, size, size ); // 创建3D纹理
+    console.log(data, texture);
     texture.format = THREE.RedFormat;
     texture.minFilter = THREE.LinearFilter;
     texture.magFilter = THREE.LinearFilter;
-    texture.unpackAlignment = 1;
+    texture.unpackAlignment = 2; // 纹理对齐方式设置为1，以确保正确处理单通道数据
     texture.needsUpdate = true;
 
     // Material
@@ -178,12 +178,12 @@ const createCloud = () => {
 
         uint wang_hash(uint seed)
         {
-                seed = (seed ^ 61u) ^ (seed >> 16u);
-                seed *= 9u;
-                seed = seed ^ (seed >> 4u);
-                seed *= 0x27d4eb2du;
-                seed = seed ^ (seed >> 15u);
-                return seed;
+            seed = (seed ^ 61u) ^ (seed >> 16u);
+            seed *= 9u;
+            seed = seed ^ (seed >> 4u);
+            seed *= 0x27d4eb2du;
+            seed = seed ^ (seed >> 15u);
+            return seed;
         }
 
         float randomFloat(inout uint seed)
@@ -268,17 +268,17 @@ const createCloud = () => {
         }
     `;
 
-    const geometry = new THREE.BoxGeometry( 300, 300, 300 );
+    const geometry = new THREE.BoxGeometry( 10, 10, 10 );
     const material = new THREE.RawShaderMaterial( {
         glslVersion: THREE.GLSL3,
         uniforms: {
             base: { value: new THREE.Color( 0x798aa0 ) },
             map: { value: texture },
             cameraPos: { value: new THREE.Vector3() },
-            threshold: { value: 0.15 }, // 降低阈值，让更多的云雾可见
-            opacity: { value: 0.8 }, // 增加不透明度
-            range: { value: 0.2 }, // 增加范围，使云雾更加扩散
-            steps: { value: 100 }, // 增加步数，提高渲染质量
+            threshold: { value: 0.25}, // 进一步降低阈值，让更多的云雾可见
+            opacity: { value: 0.25 }, // 降低不透明度使效果更加柔和
+            range: { value: 0.1 }, // 增加范围，使云雾更加扩散
+            steps: { value: 30 }, // 增加步数，提高渲染质量
             frame: { value: 0 }
         },
         vertexShader,
@@ -288,7 +288,10 @@ const createCloud = () => {
     } );
 
     mesh = new THREE.Mesh( geometry, material );
-    scene.add( mesh );
+    console.log(mesh);
+    mesh.scale.set(100, 100, 100); // 设置云模型的缩放比例
+    // scene.add( mesh );
+    return mesh; // 返回云模型
 }
 
 
@@ -304,7 +307,7 @@ onMounted(() => {
     scene.add(createAxesHelper()) // 添加坐标轴辅助
     scene.add(createGridHelper()) // 添加坐标轴辅助
 
-    scene.add(camera); // 添加相机到场景中
+    // scene.add(camera); // 添加相机到场景中
     
     scene.add(createCloud())
     

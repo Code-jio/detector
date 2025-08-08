@@ -268,7 +268,6 @@ const createCloud = () => {
         }
     `;
 
-    const geometry = new THREE.BoxGeometry( 10, 10, 10 );
     const material = new THREE.RawShaderMaterial( {
         glslVersion: THREE.GLSL3,
         uniforms: {
@@ -286,7 +285,8 @@ const createCloud = () => {
         side: THREE.DoubleSide,
         transparent: true
     } );
-
+    
+    const geometry = new THREE.BoxGeometry( 10, 10, 10 );
     mesh = new THREE.Mesh( geometry, material );
     console.log(mesh);
     mesh.scale.set(100, 100, 100); // 设置云模型的缩放比例

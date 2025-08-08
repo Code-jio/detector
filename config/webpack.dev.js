@@ -57,10 +57,10 @@ const getStyleLoader = (pre) => {
 const getLocalIpAddress = () => {
   const interfaces = os.networkInterfaces();
   for (const name of Object.keys(interfaces)) {
-    for (const interface of interfaces[name]) {
+    for (const iface of interfaces[name]) {
       // 跳过内部地址和非IPv4地址
-      if (interface.family === 'IPv4' && !interface.internal) {
-        return interface.address;
+      if (iface.family === 'IPv4' && !iface.internal) {
+        return iface.address;
       }
     }
   }
@@ -212,10 +212,10 @@ module.exports = {
   devServer: {
     // 使用 '0.0.0.0' 绑定所有网络接口，或者动态获取IP
     host: '0.0.0.0',
-    port: 3000,
+    port: 3002,
     open: [
-      `http://localhost:3000`,
-      `http://${getLocalIpAddress()}:3000`
+      `http://localhost:3002`,
+      `http://${getLocalIpAddress()}:3002`
     ],
     hot: true,
     historyApiFallback: true, // 解决react-router刷新
@@ -243,9 +243,9 @@ module.exports = {
       const localIp = getLocalIpAddress();
       
       console.log('\n项目启动成功！可通过以下地址访问：');
-      console.log(`- 本机访问: http://localhost:${port}`);
-      console.log(`- 局域网访问: http://${localIp}:${port}`);
-      console.log(`- 外部访问: http://0.0.0.0:${port}\n`);
+      console.log(`- Local access: http://localhost:${port}`);
+      console.log(`- LAN access: http://${localIp}:${port}`);
+      console.log(`- External access: http://0.0.0.0:${port}\n`);
     },
   },
   

@@ -162,6 +162,7 @@ module.exports = {
       __VUE_OPTIONS_API__: true,
       __VUE_PROD_DEVTOOLS__: false,
       __VUE_PROD_HYDRATION_MISMATCH_DETAILS__: false,
+      THREE: 'THREE', // 为shader-particle-engine提供全局THREE变量
     }),
     AutoImport({
       resolvers: [ElementPlusResolver()],
@@ -213,10 +214,10 @@ module.exports = {
   devServer: {
     // 使用 '0.0.0.0' 绑定所有网络接口，或者动态获取IP
     host: '0.0.0.0',
-    port: 3001,
+    port: 3002,
     open: [
-      `http://localhost:3000`,
-      `http://${getLocalIpAddress()}:3000`
+      `http://localhost:3002`,
+      `http://${getLocalIpAddress()}:3002`
     ],
     hot: true,
     historyApiFallback: true, // 解决react-router刷新

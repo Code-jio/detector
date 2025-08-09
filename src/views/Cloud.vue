@@ -12,7 +12,7 @@ import * as TWEEN from '@tweenjs/tween.js';
 import { random } from '@/utils/tools.js';
 import { ImprovedNoise } from 'three/examples/jsm/math/ImprovedNoise.js';
 
-let stats, renderer, scene
+let stats, renderer, scene, textureLoader
 
 // 创建相机
 const camera = new THREE.PerspectiveCamera(45, window.innerWidth / window.innerHeight, 0.1, 100000);
@@ -20,7 +20,7 @@ camera.updateProjectionMatrix(); // 更新相机投影矩阵
 camera.position.set(100, 100, 100); // 设置相机位置
 camera.lookAt(0, 0, 0); // 设置相机焦点
 
-
+textureLoader = new THREE.TextureLoader();
 const clock = new THREE.Clock();// 创建时钟对象Clock
 const container = ref(null) // 画布dom
 const state = ref(null) // 性能监视器dom
@@ -100,200 +100,213 @@ const clickScene = (event) => {
     }
 }
 
-const createCloud = () => { 
-    const size = 128; // 立方体的大小
-    const data = new Uint8Array( size * size * size );
+function createSmokeEffect(params) {
+    // 使用传入的参数，没有时才使用默认值
+    const {
+        meshPosition,
+        name,
+        color = '#888888',
+        size = 2.5,        // 默认增大烟雾范围
+        height = 1,        // 默认增大高度
+        range = 4.0,       // 默认增大扩散范围
+        particleCount = 1500 // 默认粒子数量
+    } = params;
 
-    let i = 0;
-    const scale = 0.05; // 降低scale值会产生更大的烟雾纹理
-    const perlin = new ImprovedNoise();
-    const vector = new THREE.Vector3();
+    // 加载烟雾纹理
+    const smokeTexture = textureLoader.load("./texture/smoke1.png");
 
-    for ( let z = 0; z < size; z ++ ) {
+    // 粒子系统参数
+    const PARTICLE_COUNT = particleCount;
+    const positions = new Float32Array(PARTICLE_COUNT * 3);
+    const velocities = new Float32Array(PARTICLE_COUNT * 3);
+    const lifetimes = new Float32Array(PARTICLE_COUNT);
+    const startTimes = new Float32Array(PARTICLE_COUNT);
+    const sizes = new Float32Array(PARTICLE_COUNT);
+    const colors = new Float32Array(PARTICLE_COUNT * 3);
 
-        for ( let y = 0; y < size; y ++ ) {
+    // 保持当前的生命周期
+    const maxLifetime = 8.0; // 烟雾粒子最大存活时间（秒）
 
-            for ( let x = 0; x < size; x ++ ) {
+    // 初始化粒子 - 使用传入的参数
+    for (let i = 0; i < PARTICLE_COUNT; i++) {
+        // 在小范围内随机分布，形成烟雾源
+        const emitRadius = Math.random() * (size * 0.3); // 基于size参数调整发射半径
+        const emitAngle = Math.random() * Math.PI * 2;
 
-                const d = 1.0 - vector.set( x, y, z ).subScalar( size / 2 ).divideScalar( size ).length();
-                data[ i ] = ( 128 + 128 * perlin.noise( x * scale / 1.5, y * scale, z * scale / 1.5 ) ) * d * d;
-                i ++;
+        positions[3 * i] = Math.cos(emitAngle) * emitRadius;
+        positions[3 * i + 1] = -0.2 + Math.random() * 0.2; // 略低于地面
+        positions[3 * i + 2] = Math.sin(emitAngle) * emitRadius;
 
-            }
+        // 速度：基于传入的height和range参数
+        const upwardSpeed = (0.05 + Math.random() * 0.1) * height; // 使用height参数
+        const horizontalSpeed = (0.15 + Math.random()) * range; // 使用range参数
 
+        velocities[3 * i] = (Math.random() - 0.5) * horizontalSpeed;
+        velocities[3 * i + 1] = upwardSpeed;
+        velocities[3 * i + 2] = (Math.random() - 0.5) * horizontalSpeed;
+
+        // 生命周期，错开时间让烟雾连续
+        lifetimes[i] = maxLifetime * (0.7 + Math.random() * 0.3);
+
+        // 错开起始时间，确保烟雾从一开始就存在
+        const currentTime = clock.getElapsedTime();
+        startTimes[i] = currentTime - Math.random() * maxLifetime;
+
+        // 初始粒子大小 - 直接使用size参数
+        sizes[i] = size * (0.5 + Math.random() * 1.0);
+
+        // 烟雾颜色 - 使用传入的color参数
+        let colorValue;
+        if (typeof color === 'string') {
+            const c = new THREE.Color(color);
+            colorValue = { r: c.r, g: c.g, b: c.b };
+        } else {
+            colorValue = color;
         }
 
+        // 设置颜色，应用随机灰度变化
+        const shade = 0.8 + Math.random() * 0.2;
+        colors[3 * i] = colorValue.r * shade;
+        colors[3 * i + 1] = colorValue.g * shade;
+        colors[3 * i + 2] = colorValue.b * shade;
     }
-    const texture = new THREE.Data3DTexture( data, size, size, size ); // 创建3D纹理
-    console.log(data, texture);
-    texture.format = THREE.RedFormat;
-    texture.minFilter = THREE.LinearFilter;
-    texture.magFilter = THREE.LinearFilter;
-    texture.unpackAlignment = 2; // 纹理对齐方式设置为1，以确保正确处理单通道数据
-    texture.needsUpdate = true;
 
-    // Material
 
-    const vertexShader = /* glsl */`
-        in vec3 position;
+    const geometry = new THREE.BufferGeometry();
+    geometry.setAttribute('position', new THREE.BufferAttribute(positions, 3));
+    geometry.setAttribute('velocity', new THREE.BufferAttribute(velocities, 3));
+    geometry.setAttribute('startTime', new THREE.BufferAttribute(startTimes, 1));
+    geometry.setAttribute('lifetime', new THREE.BufferAttribute(lifetimes, 1));
+    geometry.setAttribute('size', new THREE.BufferAttribute(sizes, 1));
+    geometry.setAttribute('color', new THREE.BufferAttribute(colors, 3));
 
-        uniform mat4 modelMatrix;
-        uniform mat4 modelViewMatrix;
-        uniform mat4 projectionMatrix;
-        uniform vec3 cameraPos;
+    const material = new THREE.PointsMaterial({
+        size: 4.0 * size, // 增大基础大小，从3.0到4.0
+        map: smokeTexture,
+        vertexColors: true,
+        transparent: true,
+        depthWrite: false,
+        opacity: 0.6, // 稍微降低不透明度，从0.7到0.6
+        blending: THREE.NormalBlending,
+    });
+    // 注意：纹理不应立即释放，材质还在使用
+    smokeTexture.dispose();
 
-        out vec3 vOrigin;
-        out vec3 vDirection;
+    const particles = new THREE.Points(geometry, material);
+    particles.name = name;
+    particles.userData.effectMethod = 'CreateSmokeEffect'
+    particles.userData.size = size;
+    particles.userData.height = height;
+    particles.userData.range = range;
+    particles.position.copy(meshPosition);
 
-        void main() {
-            vec4 mvPosition = modelViewMatrix * vec4( position, 1.0 );
+    // 添加到场景
+    scene.add(particles)
 
-            vOrigin = vec3( inverse( modelMatrix ) * vec4( cameraPos, 1.0 ) ).xyz;
-            vDirection = position - vOrigin;
-
-            gl_Position = projectionMatrix * mvPosition;
-        }
-    `;
-
-    const fragmentShader = /* glsl */`
-        precision highp float;
-        precision highp sampler3D;
-
-        uniform mat4 modelViewMatrix;
-        uniform mat4 projectionMatrix;
-
-        in vec3 vOrigin;
-        in vec3 vDirection;
-
-        out vec4 color;
-
-        uniform vec3 base;
-        uniform sampler3D map;
-
-        uniform float threshold;
-        uniform float range;
-        uniform float opacity;
-        uniform float steps;
-        uniform float frame;
-
-        uint wang_hash(uint seed)
-        {
-            seed = (seed ^ 61u) ^ (seed >> 16u);
-            seed *= 9u;
-            seed = seed ^ (seed >> 4u);
-            seed *= 0x27d4eb2du;
-            seed = seed ^ (seed >> 15u);
-            return seed;
-        }
-
-        float randomFloat(inout uint seed)
-        {
-                return float(wang_hash(seed)) / 4294967296.;
-        }
-
-        vec2 hitBox( vec3 orig, vec3 dir ) {
-            const vec3 box_min = vec3( - 0.5 );
-            const vec3 box_max = vec3( 0.5 );
-            vec3 inv_dir = 1.0 / dir;
-            vec3 tmin_tmp = ( box_min - orig ) * inv_dir;
-            vec3 tmax_tmp = ( box_max - orig ) * inv_dir;
-            vec3 tmin = min( tmin_tmp, tmax_tmp );
-            vec3 tmax = max( tmin_tmp, tmax_tmp );
-            float t0 = max( tmin.x, max( tmin.y, tmin.z ) );
-            float t1 = min( tmax.x, min( tmax.y, tmax.z ) );
-            return vec2( t0, t1 );
-        }
-
-        float sample1( vec3 p ) {
-            return texture( map, p ).r;
-        }
-
-        float shading( vec3 coord ) {
-            float step = 0.01;
-            return sample1( coord + vec3( - step ) ) - sample1( coord + vec3( step ) );
-        }
-
-        vec4 linearToSRGB( in vec4 value ) {
-            return vec4( mix( pow( value.rgb, vec3( 0.41666 ) ) * 1.055 - vec3( 0.055 ), value.rgb * 12.92, vec3( lessThanEqual( value.rgb, vec3( 0.0031308 ) ) ) ), value.a );
-        }
-
-        void main(){
-            vec3 rayDir = normalize( vDirection );
-            vec2 bounds = hitBox( vOrigin, rayDir );
-
-            if ( bounds.x > bounds.y ) discard;
-
-            bounds.x = max( bounds.x, 0.0 );
-
-            vec3 p = vOrigin + bounds.x * rayDir;
-            vec3 inc = 1.0 / abs( rayDir );
-            float delta = min( inc.x, min( inc.y, inc.z ) );
-            delta /= steps;
-
-            // Jitter
-
-            // Nice little seed from
-            // https://blog.demofox.org/2020/05/25/casual-shadertoy-path-tracing-1-basic-camera-diffuse-emissive/
-            uint seed = uint( gl_FragCoord.x ) * uint( 1973 ) + uint( gl_FragCoord.y ) * uint( 9277 ) + uint( frame ) * uint( 26699 );
-            vec3 size = vec3( textureSize( map, 0 ) );
-            float randNum = randomFloat( seed ) * 2.0 - 1.0;
-            p += rayDir * randNum * ( 1.0 / size );
-
-            //
-
-            vec4 ac = vec4( base, 0.0 );
-
-            for ( float t = bounds.x; t < bounds.y; t += delta ) {
-
-                float d = sample1( p + 0.5 );
-
-                d = smoothstep( threshold - range, threshold + range, d ) * opacity;
-
-                float col = shading( p + 0.5 ) * 3.0 + ( ( p.x + p.y ) * 0.25 ) + 0.2;
-
-                ac.rgb += ( 1.0 - ac.a ) * d * col;
-
-                ac.a += ( 1.0 - ac.a ) * d;
-
-                if ( ac.a >= 0.95 ) break;
-
-                p += rayDir * delta;
-
-            }
-
-            color = linearToSRGB( ac );
-
-            if ( color.a == 0.0 ) discard;
-
-        }
-    `;
-
-    const material = new THREE.RawShaderMaterial( {
-        glslVersion: THREE.GLSL3,
-        uniforms: {
-            base: { value: new THREE.Color( 0x798aa0 ) },
-            map: { value: texture },
-            cameraPos: { value: new THREE.Vector3() },
-            threshold: { value: 0.25}, // 进一步降低阈值，让更多的云雾可见
-            opacity: { value: 0.25 }, // 降低不透明度使效果更加柔和
-            range: { value: 0.1 }, // 增加范围，使云雾更加扩散
-            steps: { value: 30 }, // 增加步数，提高渲染质量
-            frame: { value: 0 }
-        },
-        vertexShader,
-        fragmentShader,
-        side: THREE.DoubleSide,
-        transparent: true
-    } );
-    
-    const geometry = new THREE.BoxGeometry( 10, 10, 10 );
-    mesh = new THREE.Mesh( geometry, material );
-    console.log(mesh);
-    mesh.scale.set(100, 100, 100); // 设置云模型的缩放比例
-    // scene.add( mesh );
-    return mesh; // 返回云模型
+    // 返回粒子系统对象，便于外部管理
+    return particles;
 }
 
+// 更新烟雾效果的函数
+function updateSmokeEffect(effect, delta, elapsed) {
+
+    const geometry = effect.geometry;
+    const posAttr = geometry.getAttribute('position');
+    const velAttr = geometry.getAttribute('velocity');
+    const startAttr = geometry.getAttribute('startTime');
+    const lifeAttr = geometry.getAttribute('lifetime');
+    const sizeAttr = geometry.getAttribute('size');
+    const colorAttr = geometry.getAttribute('color');
+
+    const count = posAttr.count;
+    for (let i = 0; i < count; i++) {
+        let age = elapsed - startAttr.getX(i);
+        const lifetime = lifeAttr.getX(i);
+
+        // 如果粒子已超出生命周期，则重置它
+        if (age > lifetime) {
+            startAttr.setX(i, elapsed);
+            age = 0;
+            
+            // 从effect对象获取原始参数
+            const originalSize = effect.userData.size || 2.5;
+            const originalHeight = effect.userData.height || 4;
+            const originalRange = effect.userData.range || 4.0;
+            
+            // 重置位置到底部发射区 - 基于原始参数
+            const emitRadius = Math.random() * (originalSize * 0.3);
+            const emitAngle = Math.random() * Math.PI * 2;
+
+            posAttr.setXYZ(i, Math.cos(emitAngle) * emitRadius, -0.2 + Math.random() * 0.2, Math.sin(emitAngle) * emitRadius);
+
+            // 重置速度 - 基于原始height和range参数，增强扩散效果
+        const upwardSpeed = (0.08 + Math.random() * 0.15) * originalHeight;  // 增大上升速度
+        const horizontalSpeed = (0.3 + Math.random() * 0.5) * originalRange; // 大幅增强水平扩散
+
+            velAttr.setXYZ(
+                i,
+                (Math.random() - 0.5) * horizontalSpeed,
+                upwardSpeed,
+                (Math.random() - 0.5) * horizontalSpeed
+            );
+
+            // 重置大小 - 基于原始size参数
+            sizeAttr.setX(i, originalSize * (0.5 + Math.random() * 1.0));
+
+            // 重置颜色 - 保持原始颜色
+            const shade = 0.8 + Math.random() * 0.2;
+            colorAttr.setXYZ(i, shade, shade, shade);
+        }
+
+        // 更新位置：p += v * dt + 增强摆动
+        const swayX = Math.sin(elapsed * 0.5 + i * 0.08) * 0.02; // 大幅增强摆动幅度
+        const swayZ = Math.cos(elapsed * 0.4 + i * 0.1) * 0.02; // 大幅增强摆动幅度
+
+        posAttr.setXYZ(
+            i,
+            posAttr.getX(i) + velAttr.getX(i) * delta + swayX,
+            posAttr.getY(i) + velAttr.getY(i) * delta,
+            posAttr.getZ(i) + velAttr.getZ(i) * delta + swayZ
+        );
+
+        // 获取当前高度用于计算
+        const currentHeight = posAttr.getY(i);
+        const t = age / lifetime; // 生命周期进度
+
+        // 随高度调整速度 - 越高水平扩散越大
+        if (currentHeight > 0.5) {
+            const heightFactor = Math.min(1, currentHeight / 3.0);
+            const horizontalSpread = 0.02 * heightFactor; // 增大扩散系数，从0.01到0.02
+
+            // 向上速度随高度降低，水平扩散增加
+            velAttr.setXYZ(
+                i,
+                velAttr.getX(i) + (Math.random() - 0.5) * horizontalSpread * delta,
+                velAttr.getY(i) * (1 - 0.02 * delta), // 减缓上升速度减少率，从0.03到0.02，让烟雾上升更高
+                velAttr.getZ(i) + (Math.random() - 0.5) * horizontalSpread * delta
+            );
+        }
+
+        // 随高度增大粒子尺寸 - 模拟扩散
+        const growthFactor = 1 + (0.15 + currentHeight * 0.15) * delta; // 增大生长因子，从0.1到0.15
+        sizeAttr.setX(i, sizeAttr.getX(i) * growthFactor);
+
+        // 随高度和年龄调整颜色 - 烟雾越高越淡
+        if (currentHeight > 0.3) {
+            const heightRatio = Math.min(1, currentHeight / 3.0);
+            // 随着高度，颜色稍微变暗
+            const newShade = Math.max(0.7, 0.8 - heightRatio * 0.1);
+            colorAttr.setXYZ(i, newShade, newShade, newShade);
+        }
+    }
+
+    // 标记属性已更新
+    posAttr.needsUpdate = true;
+    colorAttr.needsUpdate = true;
+    startAttr.needsUpdate = true;
+    sizeAttr.needsUpdate = true;
+    velAttr.needsUpdate = true;
+}
 
 onMounted(() => {
     createStats(state.value); // 创建性能监视器
@@ -307,10 +320,22 @@ onMounted(() => {
     scene.add(createAxesHelper()) // 添加坐标轴辅助
     scene.add(createGridHelper()) // 添加坐标轴辅助
 
-    // scene.add(camera); // 添加相机到场景中
-    
-    scene.add(createCloud())
-    
+    // 存储所有特效以便更新
+    window.effects = [];
+
+    // 创建烟雾效果示例 - 使用可调整的参数
+    const smokeEffect = createSmokeEffect({
+        meshPosition: new THREE.Vector3(0, 3, 0),
+        name: 'exampleSmoke',
+        color: '#666666',
+        size: 5.0,      // 增大烟雾尺寸
+        height: 8,      // 增加上升高度
+        range: 6.0,     // 扩大扩散范围
+        particleCount: 2000  // 增加粒子数量
+    });
+
+    if (smokeEffect) window.effects.push(smokeEffect);
+
     // 左键点击事件
     container.value.addEventListener('click', clickScene, false);
 
@@ -323,19 +348,43 @@ onMounted(() => {
 
     // console.log(animate_List[0]);
 
+    // 添加全局烟雾控制对象
+    window.smokeControls = {
+        size: 5.0,
+        height: 8,
+        range: 6.0,
+        particleCount: 2000,
+        speed: 1.0,
+        spread: 1.0
+    };
+
     // 逐帧渲染
-    const render = () => {
+    let lastTime = 0;
+    const render = (currentTime) => {
+        const deltaTime = Math.max(0.001, Math.min((currentTime - lastTime) / 1000, 0.1)); // 限制delta范围
+        lastTime = currentTime;
+
         stats.update(); // 开始性能监视器
         controls.update();
-        // const frameT = clock.getDelta();
-        // 更新播放器相关的时间
-        // if (mixer) {
-        //     mixer.update(frameT); // 更新动画
-        // }
 
-        mesh.material.uniforms.cameraPos.value.copy( camera.position );
+        // 更新所有烟雾效果
+        if (window.effects) {
+            window.effects.forEach(effect => {
+                if (effect && effect.userData && effect.userData.effectMethod === 'CreateSmokeEffect') {
+                    // 实时更新参数
+                    effect.userData.size = window.smokeControls.size;
+                    effect.userData.height = window.smokeControls.height;
+                    effect.userData.range = window.smokeControls.range;
+                    updateSmokeEffect(effect, deltaTime, currentTime);
+                }
+            });
+        }
 
-        mesh.material.uniforms.frame.value ++;
+        // 注意：mesh相关代码需要createCloud函数实际创建云模型
+        if (mesh && mesh.material && mesh.material.uniforms) {
+            mesh.material.uniforms.cameraPos.value.copy(camera.position);
+            mesh.material.uniforms.frame.value++;
+        }
 
         renderer.render(scene, camera); // 渲染场景
         requestAnimationFrame(render); // 请求再次执行渲染函数render

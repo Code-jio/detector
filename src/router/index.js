@@ -64,6 +64,11 @@ export default createRouter({
       path: "/Fire",
       component: () =>
         import('@/views/Fire.vue'),
+    },
+    {
+      path: "/Smoke",
+      component: () =>
+        import('@/views/Smoke.vue'),
     }
   ],
 });

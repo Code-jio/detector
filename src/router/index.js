@@ -8,7 +8,7 @@ export default createRouter({
   routes: [
     {
       path: '/',
-      redirect: '/Fire',
+      redirect: '/Smoke',
     },
     {
       path: '/home',

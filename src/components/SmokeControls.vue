@@ -76,9 +76,9 @@
 import { ref, reactive, watch, onMounted } from 'vue'
 import * as THREE from "three"
 const controls = reactive({
-    mainEmissionRate: 25,
-    secondaryEmissionRate: 15,
-    thirdEmissionRate: 10,
+    mainEmissionRate: 100,
+    secondaryEmissionRate: 50,
+    thirdEmissionRate: 30,
     windX: 0.3,
     windY: 1.2,
     windZ: 0.1,
@@ -86,13 +86,13 @@ const controls = reactive({
     particleSize: 3.0,
     lifetime: 6.0
 })
-
+console.log(controls)
 const isPaused = ref(false)
 
 const defaults = {
-    mainEmissionRate: 25,
-    secondaryEmissionRate: 15,
-    thirdEmissionRate: 10,
+    mainEmissionRate: 100,
+    secondaryEmissionRate: 50,
+    thirdEmissionRate: 30,
     windX: 0.3,
     windY: 1.2,
     windZ: 0.1,
@@ -162,7 +162,7 @@ const togglePause = () => {
                     1: controls.secondaryEmissionRate,
                     2: controls.thirdEmissionRate
                 }
-                effect.options.emissionRate = originalRates[effects.indexOf({ effect })] || 25
+                effect.options.emissionRate = originalRates[effects.indexOf({ effect })] || 100
             }
         })
     }

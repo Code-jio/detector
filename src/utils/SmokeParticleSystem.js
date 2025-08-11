@@ -45,7 +45,34 @@ export class SmokeParticleSystem {
         this.geometry.setAttribute('alpha', new THREE.BufferAttribute(this.alphas, 1));
 
         // 创建烟雾材质
-        const smokeTexture = new THREE.TextureLoader().load('/texture/smoke1.png');
+        // 创建烟雾材质
+        const smokeTexture = new THREE.TextureLoader().load('/texture/smoke1.png', 
+            (texture) => {
+                // 纹理加载成功
+                console.log('烟雾纹理加载成功');
+            },
+            undefined,
+            (error) => {
+                // 纹理加载失败，使用备用纹理
+                console.warn('烟雾纹理加载失败，使用备用纹理', error);
+                // 创建一个简单的白色纹理作为备用
+                const canvas = document.createElement('canvas');
+                canvas.width = 256;
+                canvas.height = 256;
+                const ctx = canvas.getContext('2d');
+                
+                // 创建径向渐变作为烟雾纹理
+                const gradient = ctx.createRadialGradient(128, 128, 0, 128, 128, 128);
+                gradient.addColorStop(0, 'rgba(255,255,255,0.8)');
+                gradient.addColorStop(0.4, 'rgba(255,255,255,0.5)');
+                gradient.addColorStop(1, 'rgba(255,255,255,0)');
+                
+                ctx.fillStyle = gradient;
+                ctx.fillRect(0, 0, 256, 256);
+                
+                this.material.uniforms.smokeTexture.value = new THREE.CanvasTexture(canvas);
+            }
+        );
         this.material = new THREE.ShaderMaterial({
             uniforms: {
                 time: { value: 0 },

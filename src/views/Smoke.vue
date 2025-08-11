@@ -119,13 +119,13 @@ onMounted(() => {
     // 创建烟雾效果管理器
     const smokeManager = new SmokeEffectManager(scene);
 
-    // 创建基础烟雾效果
+    // 创建基础烟雾效果 - 增加初始发射率
     const mainSmoke = smokeManager.createSmokeEffect({
-        maxParticles: 800,
+        maxParticles: 1000,
         particleSize: 3.0,
-        emissionRate: 25,
-        lifetime: 6.0,
-        position: new THREE.Vector3(0, 0, 0),
+        emissionRate: 100,  // 增加初始发射率
+        lifetime: 10.0,
+        position: new THREE.Vector3(0, 0, 0),  // 提高位置使其可见
         spread: new THREE.Vector3(8, 3, 8),
         colorStart: new THREE.Color(0x666666),
         colorEnd: new THREE.Color(0x222222),
@@ -137,9 +137,9 @@ onMounted(() => {
     const secondarySmoke = smokeManager.createSmokeEffect({
         maxParticles: 500,
         particleSize: 2.0,
-        emissionRate: 15,
+        emissionRate: 50,  // 增加发射率
         lifetime: 4.0,
-        position: new THREE.Vector3(-20, -5, 10),
+        position: new THREE.Vector3(-20, 0, 10),  // 调整位置
         spread: new THREE.Vector3(5, 2, 5),
         colorStart: new THREE.Color(0x777777),
         colorEnd: new THREE.Color(0x333333),
@@ -151,9 +151,9 @@ onMounted(() => {
     const thirdSmoke = smokeManager.createSmokeEffect({
         maxParticles: 300,
         particleSize: 1.5,
-        emissionRate: 10,
+        emissionRate: 30,  // 增加发射率
         lifetime: 3.5,
-        position: new THREE.Vector3(25, -8, -15),
+        position: new THREE.Vector3(25, -3, -15),  // 调整位置
         spread: new THREE.Vector3(4, 2, 4),
         colorStart: new THREE.Color(0x888888),
         colorEnd: new THREE.Color(0x444444),
@@ -161,11 +161,25 @@ onMounted(() => {
         windForce: new THREE.Vector3(-0.2, 1.0, 0.3)
     });
 
+    // 初始化烟雾效果 - 立即应用初始发射率并发射粒子
+    setTimeout(() => {
+        if (typeof updateSmokeControls === 'function') {
+            updateSmokeControls();
+        }
+        
+        // 强制预填充一些粒子，让烟雾立即可见
+        const preFillDelta = 0.1; // 较大的时间步长快速填充
+        for (let i = 0; i < 30; i++) {
+            mainSmoke.update(preFillDelta);
+            secondarySmoke.update(preFillDelta);
+            thirdSmoke.update(preFillDelta);
+        }
+    }, 100); // 确保所有对象已初始化
     // 添加烟雾控制面板
     const smokeControls = {
-        mainEmissionRate: 25,
-        secondaryEmissionRate: 15,
-        thirdEmissionRate: 10,
+        mainEmissionRate: 100,      // 提高初始发射率，确保初始可见
+        secondaryEmissionRate: 50,  // 提高初始发射率
+        thirdEmissionRate: 30,      // 提高初始发射率
         windX: 0.3,
         windY: 1.2,
         windZ: 0.1,
@@ -175,6 +189,32 @@ onMounted(() => {
     // 将控制器暴露给全局，便于调试
     window.smokeControls = smokeControls;
     window.smokeManager = smokeManager;
+    
+    // 定义烟雾控制更新函数（移到前面）
+    const updateSmokeControls = () => {
+        if (!mainSmoke || !secondarySmoke || !thirdSmoke) return;
+        
+        mainSmoke.setEmissionRate(smokeControls.mainEmissionRate);
+        secondarySmoke.setEmissionRate(smokeControls.secondaryEmissionRate);
+        thirdSmoke.setEmissionRate(smokeControls.thirdEmissionRate);
+        
+        const windForce = new THREE.Vector3(
+            smokeControls.windX,
+            smokeControls.windY,
+            smokeControls.windZ
+        );
+        
+        mainSmoke.options.windForce = windForce;
+        secondarySmoke.options.windForce = windForce;
+        thirdSmoke.options.windForce = windForce;
+        
+        mainSmoke.options.turbulence = smokeControls.turbulence;
+        secondarySmoke.options.turbulence = smokeControls.turbulence;
+        thirdSmoke.options.turbulence = smokeControls.turbulence;
+    };
+    
+    // 将函数暴露到全局
+    window.updateSmokeControls = updateSmokeControls;
 
     // 左键点击事件 - 在点击位置创建临时烟雾
     container.value.addEventListener('click', (event) => {
@@ -218,29 +258,8 @@ onMounted(() => {
         camera.aspect = window.innerWidth / window.innerHeight;
         camera.updateProjectionMatrix();
         renderer.setSize(window.innerWidth, window.innerHeight);
-    }, false);
-
-    // 添加烟雾控制更新
-    const updateSmokeControls = () => {
-        mainSmoke.setEmissionRate(smokeControls.mainEmissionRate);
-        secondarySmoke.setEmissionRate(smokeControls.secondaryEmissionRate);
-        thirdSmoke.setEmissionRate(smokeControls.thirdEmissionRate);
-        
-        const windForce = new THREE.Vector3(
-            smokeControls.windX,
-            smokeControls.windY,
-            smokeControls.windZ
-        );
-        
-        mainSmoke.options.windForce = windForce;
-        secondarySmoke.options.windForce = windForce;
-        thirdSmoke.options.windForce = windForce;
-        
-        mainSmoke.options.turbulence = smokeControls.turbulence;
-        secondarySmoke.options.turbulence = smokeControls.turbulence;
-        thirdSmoke.options.turbulence = smokeControls.turbulence;
-    };
-
+    }, false)
+    
     // 逐帧渲染
     let lastTime = 0;
     const render = (currentTime) => {
@@ -251,7 +270,9 @@ onMounted(() => {
         controls.update();
         
         // 更新烟雾控制器
-        updateSmokeControls();
+        if (typeof updateSmokeControls === 'function') {
+            updateSmokeControls();
+        }
 
         // 更新相机位置到着色器
         if (mainSmoke && mainSmoke.material && mainSmoke.material.uniforms) {

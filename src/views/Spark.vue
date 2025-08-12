@@ -1,10 +1,76 @@
 <template>
     <canvas class="container" ref="container"></canvas>
     <div class="state" ref="state"></div>
- 
+    <div class="spark-controls">
+        <h3>电火花参数控制</h3>
+        
+        <div class="control-group">
+            <label>强度: {{ sparkConfig.intensity }}</label>
+            <input type="range" v-model="sparkConfig.intensity" min="20" max="200" step="10">
+        </div>
+
+        <div class="control-group">
+            <label>速度: {{ sparkConfig.speed }}</label>
+            <input type="range" v-model="sparkConfig.speed" min="200" max="1000" step="50">
+        </div>
+
+        <div class="control-group">
+            <label>粗细: {{ sparkConfig.size }}</label>
+            <input type="range" v-model="sparkConfig.size" min="0.01" max="0.2" step="0.01">
+        </div>
+
+        <div class="control-group">
+            <label>持续时间: {{ sparkConfig.lifetime }}s</label>
+            <input type="range" v-model="sparkConfig.lifetime" min="0.05" max="0.5" step="0.05">
+        </div>
+
+        <div class="control-group">
+            <label>重力: {{ sparkConfig.gravity }}</label>
+            <input type="range" v-model="sparkConfig.gravity" min="-1000" max="-100" step="50">
+        </div>
+
+        <div class="control-group">
+            <label>随机方向</label>
+            <input type="checkbox" v-model="sparkConfig.randomDirection">
+        </div>
+
+        <div class="control-group">
+            <label>扩散角度: {{ sparkConfig.spread }}</label>
+            <input type="range" v-model="sparkConfig.spread" min="0" max="1" step="0.05">
+        </div>
+        
+        <div class="control-group">
+            <label>发射方向</label>
+            <div>X: <input type="range" v-model="sparkConfig.direction.x" min="-2" max="2" step="0.1"></div>
+            <div>Y: <input type="range" v-model="sparkConfig.direction.y" min="-2" max="2" step="0.1"></div>
+            <div>Z: <input type="range" v-model="sparkConfig.direction.z" min="-2" max="2" step="0.1"></div>
+        </div>
+        
+        <div class="control-group">
+            <label>电弧颜色</label>
+            <input type="color" v-model="sparkConfig.color1">
+        </div>
+        
+        <div class="control-group">
+            <label>拖尾颜色</label>
+            <input type="color" v-model="sparkConfig.color2">
+        </div>
+        
+        <div class="control-group">
+            <label>
+                <input type="checkbox" v-model="sparkConfig.randomDirection">
+                随机方向
+            </label>
+        </div>
+
+        <div class="control-buttons">
+            <button @click="toggleSpark">{{ isSparkActive ? '暂停' : '启动' }}</button>
+            <button @click="resetSpark">重置</button>
+        </div>
+    </div>
 </template>
 <script setup>
-import { onMounted, reactive, ref } from 'vue'
+import { onMounted, reactive, ref, watch } from 'vue'
 import * as THREE from 'three';
 import Stats from 'stats.js';
 import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls.js';
@@ -28,7 +94,206 @@ const state = ref(null) // 性能监视器dom
 
 let mesh = null; // 云模型
 
+// 电火花粒子系统配置
+const sparkConfig = reactive({
+    enabled: false,
+    intensity: 80,      // 发射强度（降低频率）
+    speed: 600,         // 电弧速度
+    size: 0.05,         // 电弧粗细
+    lifetime: 0.15,     // 电弧持续时间（更短）
+    gravity: -800,      // 更强的重力
+    direction: { x: 1.5, y: 2, z: 0.5 }, // 向上倾斜的发射方向
+    color1: '#ffffff',  // 电弧主颜色（亮白色）
+    color2: '#0066ff',  // 电弧边缘颜色（蓝色）
+    randomDirection: true, // 允许随机方向
+    spread: 0.3,        // 更大的扩散角度
+    trailLength: 3      // 更短的拖尾
+});
 
+const isSparkActive = ref(true);
+let sparkSystem = null;
+
+// 电火花粒子系统类
+class SparkParticleSystem {
+    constructor(scene, config) {
+        this.scene = scene;
+        this.config = config;
+        this.particles = [];
+        this.arcs = []; // 电弧线段
+        this.clock = new THREE.Clock();
+        
+        this.init();
+    }
+    
+    // 初始化电火花系统
+    init() {
+        // 创建电弧材质
+        this.arcMaterial = new THREE.LineBasicMaterial({
+            color: 0xffffff,
+            transparent: true,
+            opacity: 0.9,
+            linewidth: 2
+        });
+        
+        // 创建拖尾材质
+        this.trailMaterial = new THREE.LineBasicMaterial({
+            color: 0x4488ff,
+            transparent: true,
+            opacity: 0.4,
+            linewidth: 1
+        });
+    }
+    
+    // 创建锯齿状电弧路径
+    createArcPath(start, end, segments = 8) {
+        const points = [];
+        const direction = end.clone().sub(start);
+        const length = direction.length();
+        const perp = new THREE.Vector3(-direction.y, direction.x, 0).normalize();
+        
+        for (let i = 0; i <= segments; i++) {
+            const t = i / segments;
+            const pos = start.clone().lerp(end, t);
+            
+            // 添加锯齿状偏移
+            const offset = Math.sin(t * Math.PI * 4) * length * 0.05 * (1 - t);
+            pos.add(perp.clone().multiplyScalar(offset));
+            
+            // 添加随机抖动
+            pos.x += (Math.random() - 0.5) * 0.1;
+            pos.y += (Math.random() - 0.5) * 0.1;
+            pos.z += (Math.random() - 0.5) * 0.1;
+            
+            points.push(pos);
+        }
+        
+        return points;
+    }
+    
+    // 发射电弧
+    emitArc() {
+        const count = Math.floor(this.config.intensity / 20);
+        
+        for (let i = 0; i < count; i++) {
+            // 创建电弧终点
+            const endPos = new THREE.Vector3(
+                this.config.direction.x * this.config.speed * this.config.lifetime * 0.1,
+                this.config.direction.y * this.config.speed * this.config.lifetime * 0.1,
+                this.config.direction.z * this.config.speed * this.config.lifetime * 0.1
+            );
+            
+            // 添加扩散角度
+            if (this.config.randomDirection) {
+                const spread = this.config.spread;
+                endPos.x += (Math.random() - 0.5) * spread * 50;
+                endPos.y += (Math.random() - 0.5) * spread * 50;
+                endPos.z += (Math.random() - 0.5) * spread * 50;
+            }
+            
+            // 应用重力影响
+            endPos.y += 0.5 * this.config.gravity * this.config.lifetime * this.config.lifetime;
+            
+            // 创建电弧路径
+            const points = this.createArcPath(
+                new THREE.Vector3(0, 0, 0),
+                endPos,
+                6 + Math.floor(Math.random() * 4)
+            );
+            
+            // 创建电弧线段
+            const geometry = new THREE.BufferGeometry().setFromPoints(points);
+            const arc = new THREE.Line(geometry, this.arcMaterial.clone());
+            
+            // 设置电弧属性
+            arc.userData = {
+                age: 0,
+                maxAge: this.config.lifetime * (0.5 + Math.random() * 0.5),
+                startTime: this.clock.getElapsedTime()
+            };
+            
+            // 设置电弧颜色
+            const material = arc.material;
+            material.color.setStyle(this.config.color1);
+            material.opacity = 0.9;
+            
+            this.scene.add(arc);
+            this.arcs.push(arc);
+            
+            // 创建拖尾效果
+            this.createTrail(points);
+        }
+    }
+    
+    // 创建拖尾效果
+    createTrail(points) {
+        const trailGeometry = new THREE.BufferGeometry().setFromPoints(points);
+        const trail = new THREE.Line(trailGeometry, this.trailMaterial.clone());
+        trail.userData = {
+            age: 0,
+            maxAge: this.config.lifetime * 0.3,
+            isTrail: true
+        };
+        
+        this.scene.add(trail);
+        this.arcs.push(trail);
+    }
+    
+    // 更新电弧系统
+    update(deltaTime) {
+        // 发射新电弧
+        if (isSparkActive.value) {
+            this.emitArc();
+        }
+        
+        // 更新现有电弧
+        for (let i = this.arcs.length - 1; i >= 0; i--) {
+            const arc = this.arcs[i];
+            arc.userData.age += deltaTime;
+            
+            if (arc.userData.age >= arc.userData.maxAge) {
+                this.scene.remove(arc);
+                arc.geometry.dispose();
+                if (arc.material) arc.material.dispose();
+                this.arcs.splice(i, 1);
+                continue;
+            }
+            
+            // 更新电弧外观
+            const lifeRatio = arc.userData.age / arc.userData.maxAge;
+            
+            if (arc.userData.isTrail) {
+                // 拖尾效果
+                arc.material.opacity = 0.4 * (1 - lifeRatio);
+                arc.material.color.lerpColors(
+                    new THREE.Color(0x4488ff),
+                    new THREE.Color(0x001122),
+                    lifeRatio
+                );
+            } else {
+                // 主电弧
+                arc.material.opacity = 0.9 * (1 - lifeRatio);
+                
+                // 电弧闪烁效果
+                if (Math.random() < 0.1) {
+                    arc.material.opacity *= 0.3;
+                }
+            }
+        }
+    }
+    
+    // 重置粒子系统
+    reset() {
+        this.particles = [];
+        this.mesh.count = 0;
+    }
+    
+    // 销毁粒子系统
+    dispose() {
+        this.scene.remove(this.mesh);
+        this.geometry.dispose();
+        this.material.dispose();
+    }
+}
 
 // 创建渲染器
 const createRender = (dom) => {
@@ -101,6 +366,24 @@ const clickScene = (event) => {
     }
 }
 
+// 控制函数
+const toggleSpark = () => {
+    isSparkActive.value = !isSparkActive.value;
+};
+
+const resetSpark = () => {
+    if (sparkSystem) {
+        sparkSystem.reset();
+    }
+};
+
+// 监听配置变化
+watch(sparkConfig, () => {
+    if (sparkSystem) {
+        sparkSystem.reset();
+    }
+}, { deep: true });
+
 // 在onMounted中添加
 onMounted(() => {
     createStats(state.value);
@@ -113,7 +396,8 @@ onMounted(() => {
     scene.add(createAxesHelper());
     scene.add(createGridHelper());
     
-
+    // 创建电火花粒子系统
+        sparkSystem = new SparkParticleSystem(scene, sparkConfig);
     
     container.value.addEventListener('click', clickScene, false);
     
@@ -129,12 +413,18 @@ onMounted(() => {
         
         const deltaTime = clock.getDelta();
         
+        // 更新电火花粒子系统
+        if (sparkSystem) {
+            sparkSystem.update(deltaTime);
+        }
+        
         renderer.render(scene, camera);
         requestAnimationFrame(render);
     };
     requestAnimationFrame(render);
 });
 </script>
+
 <style scoped lang='scss'>
 .container {
     width: 100%;

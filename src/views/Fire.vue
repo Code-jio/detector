@@ -203,11 +203,11 @@ onMounted(() => {
     scene.add(fireLight);
 
     // 创建火焰效果
-        import('../utils/FireParticleSystem.js').then(({ FireEffectManager }) => {
-            const fireManager = new FireEffectManager(scene);
-            fireEffects = fireManager.effects.map(e => e.effect);
-            
-            // 创建主要火焰效果
+    import('../utils/FireParticleSystem.js').then(({ FireEffectManager }) => {
+        const fireManager = new FireEffectManager(scene);
+        fireEffects = fireManager.effects.map(e => e.effect);
+        
+        // 创建主要火焰效果
         const mainFire = fireManager.createFireEffect({
             position: new THREE.Vector3(0, 0, 0),
             maxFireParticles: 800,

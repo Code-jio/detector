@@ -116,6 +116,142 @@ onMounted(() => {
     scene.add(createAxesHelper()) // 添加坐标轴辅助
     scene.add(createGridHelper()) // 添加坐标轴辅助
 
+    // 添加测试几何体来测试深度冲突
+    const testGeometries = [];
+    
+    // 创建不同深度的立方体
+    const cubeGeometry = new THREE.BoxGeometry(5, 5, 5);
+    const cubeMaterial = new THREE.MeshPhongMaterial({ 
+        color: 0x4444ff, 
+        transparent: true, 
+        opacity: 1,
+        side: THREE.DoubleSide
+    });
+    
+    const cube1 = new THREE.Mesh(cubeGeometry, cubeMaterial);
+    cube1.position.set(0, 2.5, 0); // 与主烟雾重叠
+    scene.add(cube1);
+    testGeometries.push(cube1);
+    
+    const cube2 = new THREE.Mesh(cubeGeometry, cubeMaterial.clone());
+    cube2.material.color.setHex(0xff4444);
+    cube2.position.set(-15, 2.5, 5); // 与secondary烟雾重叠
+    scene.add(cube2);
+    testGeometries.push(cube2);
+    
+    const cube3 = new THREE.Mesh(cubeGeometry, cubeMaterial.clone());
+    cube3.material.color.setHex(0x44ff44);
+    cube3.position.set(20, 2.5, -10); // 与third烟雾重叠
+    scene.add(cube3);
+    testGeometries.push(cube3);
+
+    // 创建球体测试
+    const sphereGeometry = new THREE.SphereGeometry(3, 32, 16);
+    const sphereMaterial = new THREE.MeshPhongMaterial({ 
+        color: 0xffff00, 
+        transparent: true, 
+        opacity: 1,
+        side: THREE.DoubleSide
+    });
+    
+    const sphere1 = new THREE.Mesh(sphereGeometry, sphereMaterial);
+    sphere1.position.set(8, 3, 8); // 与烟雾区域相交
+    scene.add(sphere1);
+    testGeometries.push(sphere1);
+    
+    const sphere2 = new THREE.Mesh(sphereGeometry, sphereMaterial.clone());
+    sphere2.material.color.setHex(0xff00ff);
+    sphere2.position.set(-8, 4, -8);
+    scene.add(sphere2);
+    testGeometries.push(sphere2);
+
+    // 创建圆柱体测试
+    const cylinderGeometry = new THREE.CylinderGeometry(2, 2, 8, 16);
+    const cylinderMaterial = new THREE.MeshPhongMaterial({ 
+        color: 0x00ffff, 
+        transparent: true, 
+        opacity: 1,
+        side: THREE.DoubleSide
+    });
+    
+    const cylinder1 = new THREE.Mesh(cylinderGeometry, cylinderMaterial);
+    cylinder1.position.set(0, 4, 15);
+    scene.add(cylinder1);
+    testGeometries.push(cylinder1);
+    
+    const cylinder2 = new THREE.Mesh(cylinderGeometry, cylinderMaterial.clone());
+    cylinder2.material.color.setHex(0xff8800);
+    cylinder2.position.set(-20, 4, 0);
+    scene.add(cylinder2);
+    testGeometries.push(cylinder2);
+
+    // 创建薄板测试深度精度
+    const thinGeometry = new THREE.PlaneGeometry(20, 10);
+    const thinMaterial = new THREE.MeshPhongMaterial({ 
+        color: 0x888888, 
+        transparent: true, 
+        opacity: 1,
+        side: THREE.DoubleSide
+    });
+    
+    const thin1 = new THREE.Mesh(thinGeometry, thinMaterial);
+    thin1.position.set(0, 5, 5);
+    thin1.rotation.x = Math.PI / 4;
+    scene.add(thin1);
+    testGeometries.push(thin1);
+
+    // 创建半透明平面网格测试
+    const gridHelper2 = new THREE.GridHelper(50, 20, 0x00ff00, 0x00ff00);
+    gridHelper2.position.y = 1;
+    gridHelper2.material.opacity = 1;
+    gridHelper2.material.transparent = true;
+    scene.add(gridHelper2);
+
+    // 将测试几何体暴露给全局，便于调试
+    window.testGeometries = testGeometries;
+
+    // 添加深度冲突测试控制
+    const depthTestControls = {
+        geometryOpacity: 1,
+        wireframeMode: false,
+        showGeometry: true,
+        showSmoke: true,
+        enableDepthTest: true,
+        enableDepthWrite: true
+    };
+
+    // 深度测试控制函数
+    const updateDepthTestControls = () => {
+        testGeometries.forEach(geometry => {
+            if (geometry.material) {
+                geometry.material.opacity = depthTestControls.geometryOpacity;
+                geometry.material.wireframe = depthTestControls.wireframeMode;
+                geometry.visible = depthTestControls.showGeometry;
+                geometry.material.depthTest = depthTestControls.enableDepthTest;
+                geometry.material.depthWrite = depthTestControls.enableDepthWrite;
+            }
+        });
+
+        // 控制烟雾显示
+        if (depthTestControls.showSmoke) {
+            [mainSmoke, secondarySmoke, thirdSmoke].forEach(smoke => {
+                if (smoke && smoke.system) {
+                    smoke.system.visible = true;
+                }
+            });
+        } else {
+            [mainSmoke, secondarySmoke, thirdSmoke].forEach(smoke => {
+                if (smoke && smoke.system) {
+                    smoke.system.visible = false;
+                }
+            });
+        }
+    };
+
+    // 暴露到全局
+    window.depthTestControls = depthTestControls;
+    window.updateDepthTestControls = updateDepthTestControls;
+
     // 创建烟雾效果管理器
     const smokeManager = new SmokeEffectManager(scene);
 
@@ -213,8 +349,20 @@ onMounted(() => {
         thirdSmoke.options.turbulence = smokeControls.turbulence;
     };
     
-    // 将函数暴露到全局
+    // 将控制器暴露到全局
     window.updateSmokeControls = updateSmokeControls;
+
+    // 添加控制台调试信息
+    console.log('=== 深度冲突测试已启用 ===');
+    console.log('可用控制：');
+    console.log('window.depthTestControls - 深度测试控制对象');
+    console.log('window.testGeometries - 测试几何体数组');
+    console.log('window.smokeControls - 烟雾控制对象');
+    console.log('示例：');
+    console.log('window.depthTestControls.geometryOpacity = 0.3; // 调整几何体透明度');
+    console.log('window.depthTestControls.wireframeMode = true; // 切换线框模式');
+    console.log('window.depthTestControls.showGeometry = false; // 隐藏几何体');
+    console.log('window.depthTestControls.showSmoke = false; // 隐藏烟雾');
 
     // 左键点击事件 - 在点击位置创建临时烟雾
     container.value.addEventListener('click', (event) => {
@@ -272,6 +420,11 @@ onMounted(() => {
         // 更新烟雾控制器
         if (typeof updateSmokeControls === 'function') {
             updateSmokeControls();
+        }
+
+        // 更新深度测试控制
+        if (typeof updateDepthTestControls === 'function') {
+            updateDepthTestControls();
         }
 
         // 更新相机位置到着色器

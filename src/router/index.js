@@ -8,7 +8,7 @@ export default createRouter({
   routes: [
     {
       path: '/',
-      redirect: '/Smoke',
+      redirect: '/Spark',
     },
     {
       path: '/home',
@@ -69,6 +69,11 @@ export default createRouter({
       path: "/Smoke",
       component: () =>
         import('@/views/Smoke.vue'),
+    },
+    {
+      path: "/Spark",
+      component: () =>
+        import('@/views/Spark.vue'),
     }
   ],
 });

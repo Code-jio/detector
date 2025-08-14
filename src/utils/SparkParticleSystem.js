@@ -1,0 +1,444 @@
+import * as THREE from 'three';
+
+/**
+ * 电火花粒子系统类
+ * 用于创建和管理电弧和电火花粒子效果
+ */
+export class SparkParticleSystem {
+    /**
+     * 构造函数
+     * @param {THREE.Scene} scene - Three.js场景对象
+     * @param {Object} config - 配置参数
+     * @param {THREE.Camera} camera - Three.js相机对象
+     */
+    constructor(scene, config, camera) {
+        this.scene = scene;
+        this.config = config;
+        this.camera = camera;
+        this.particles = [];
+        this.arcs = []; // 电弧线段
+        this.sparkParticles = []; // 电火花粒子
+        this.clock = new THREE.Clock();
+        
+        this.init();
+    }
+    
+    /**
+     * 初始化电火花系统
+     */
+    init() {
+        // 创建电弧材质
+        this.arcMaterial = new THREE.LineBasicMaterial({
+            color: 0xffffff,
+            transparent: true,
+            opacity: 0.9,
+            linewidth: 2
+        });
+        
+        // 创建拖尾材质
+        this.trailMaterial = new THREE.LineBasicMaterial({
+            color: 0x4488ff,
+            transparent: true,
+            opacity: 0.4,
+            linewidth: 1
+        });
+        
+        // 创建着色器材质（备用）
+        this.createSparkShaderMaterial();
+        
+        // 创建基础平面几何体（备用）
+        this.sparkGeometry = new THREE.PlaneGeometry(1, 1);
+    }
+    
+    /**
+     * 创建梭形粒子的着色器材质（性能优化版）
+     */
+    createSparkShaderMaterial() {
+        const vertexShader = `
+            uniform float size;
+            varying vec2 vUv;
+            
+            void main() {
+                vUv = uv;
+                vec4 mvPosition = modelViewMatrix * vec4(position, 1.0);
+                gl_Position = projectionMatrix * mvPosition;
+            }
+        `;
+
+        const fragmentShader = `
+            uniform vec3 color;
+            varying vec2 vUv;
+            
+            void main() {
+                vec2 uv = vUv - 0.5;
+                
+                // 创建菱形形状
+                float diamond = 1.0 - (abs(uv.x) + abs(uv.y));
+                diamond = smoothstep(0.0, 0.1, diamond);
+                
+                // 确保可见性
+                float alpha = diamond * 0.9;
+                
+                if (alpha < 0.01) discard;
+                
+                gl_FragColor = vec4(color, alpha);
+            }
+        `;
+
+        this.sparkShaderMaterial = new THREE.ShaderMaterial({
+            uniforms: {
+                color: { value: new THREE.Color(0xffaa00) },
+                size: { value: 1.0 }
+            },
+            vertexShader: vertexShader,
+            fragmentShader: fragmentShader,
+            transparent: true,
+            depthWrite: false,
+            side: THREE.DoubleSide
+        });
+    }
+    
+    /**
+     * 创建锯齿状电弧路径
+     * @param {THREE.Vector3} start - 起点
+     * @param {THREE.Vector3} end - 终点
+     * @param {number} segments - 分段数量
+     * @returns {THREE.Vector3[]} 路径点数组
+     */
+    createArcPath(start, end, segments = 8) {
+        const points = [];
+        const direction = end.clone().sub(start);
+        const length = direction.length();
+        
+        // 如果起点和终点相同，直接返回起点
+        if (length < 0.001) {
+            points.push(start.clone());
+            return points;
+        }
+        
+        // 创建垂直向量，避免NaN
+        let perp = new THREE.Vector3();
+        if (Math.abs(direction.x) > 0.001 || Math.abs(direction.y) > 0.001) {
+            perp.set(-direction.y, direction.x, 0).normalize();
+        } else {
+            // 如果方向主要是Z轴，使用X轴作为垂直方向
+            perp.set(1, 0, 0);
+        }
+        
+        for (let i = 0; i <= segments; i++) {
+            const t = i / segments;
+            const pos = start.clone().lerp(end, t);
+            
+            // 添加锯齿状偏移，确保不是NaN
+            const offset = Math.sin(t * Math.PI * 4) * length * 0.05 * (1 - t) || 0;
+            pos.add(perp.clone().multiplyScalar(offset));
+            
+            // 添加随机抖动
+            pos.x += (Math.random() - 0.5) * 0.1;
+            pos.y += (Math.random() - 0.5) * 0.1;
+            pos.z += (Math.random() - 0.5) * 0.1;
+            
+            // 确保所有坐标都是有效数字
+            if (isNaN(pos.x) || isNaN(pos.y) || isNaN(pos.z)) {
+                pos.set(start.x, start.y, start.z);
+            }
+            
+            points.push(pos);
+        }
+        
+        return points;
+    }
+    
+    /**
+     * 发射电弧
+     */
+    emitArc() {
+        const count = Math.floor(this.config.intensity / 20);
+        const startPos = new THREE.Vector3(
+            this.config.position.x || 0,
+            this.config.position.y || 0,
+            this.config.position.z || 0
+        );
+
+        for (let i = 0; i < count; i++) {
+            // 创建电弧终点，确保所有值都是有效数字
+            const dirX = this.config.direction.x || 0;
+            const dirY = this.config.direction.y || 0;
+            const dirZ = this.config.direction.z || 0;
+            const speed = this.config.speed || 100;
+            const lifetime = this.config.lifetime || 0.1;
+
+            const endPos = new THREE.Vector3(
+                dirX * speed * lifetime * 0.1,
+                dirY * speed * lifetime * 0.1,
+                dirZ * speed * lifetime * 0.1
+            );
+
+            // 添加扩散角度
+            if (this.config.randomDirection) {
+                const spread = this.config.spread || 0;
+                endPos.x += (Math.random() - 0.5) * spread * 50;
+                endPos.y += (Math.random() - 0.5) * spread * 50;
+                endPos.z += (Math.random() - 0.5) * spread * 50;
+            }
+
+            // 应用重力影响
+            const gravity = this.config.gravity || -100;
+            endPos.y += 0.5 * gravity * lifetime * lifetime;
+
+            // 将终点位置转换为世界坐标
+            endPos.add(startPos);
+
+            // 确保终点与起点有足够距离
+            if (endPos.distanceTo(startPos) < 0.01) {
+                endPos.x += 0.1;
+                endPos.y += 0.1;
+                endPos.z += 0.1;
+            }
+
+            // 创建电弧路径
+            const points = this.createArcPath(
+                startPos.clone(),
+                endPos,
+                6 + Math.floor(Math.random() * 4)
+            );
+
+            // 创建电弧线段
+            const geometry = new THREE.BufferGeometry().setFromPoints(points);
+            const arc = new THREE.Line(geometry, this.arcMaterial.clone());
+
+            // 设置电弧属性
+            arc.userData = {
+                age: 0,
+                maxAge: this.config.lifetime * (0.5 + Math.random() * 0.5),
+                startTime: this.clock.getElapsedTime()
+            };
+
+            // 设置电弧颜色
+            const material = arc.material;
+            material.color.setStyle(this.config.color1);
+            material.opacity = 0.9;
+
+            this.scene.add(arc);
+            this.arcs.push(arc);
+
+            // 创建拖尾效果
+            this.createTrail(points);
+            
+            // 偶然发射电火花粒子（基于配置概率）
+            if (Math.random() < (this.config.sparkProbability || 0.2)) {
+                this.emitSparkParticles(startPos, endPos);
+            }
+        }
+    }
+    
+    /**
+     * 发射电火花粒子
+     */
+    emitSparkParticles(startPos, endPos) {
+        const particleCount = 5 + Math.floor(Math.random() * 10);
+        const baseDirection = endPos.clone().sub(startPos).normalize();
+        
+        for (let i = 0; i < particleCount; i++) {
+            const spark = this.createSparkParticle(startPos, baseDirection);
+            this.sparkParticles.push(spark);
+        }
+    }
+    
+    /**
+     * 创建单个点状粒子
+     * @param {THREE.Vector3} startPos - 起始位置
+     * @param {THREE.Vector3} baseDirection - 基础方向
+     * @returns {THREE.Mesh} 粒子对象
+     */
+    createSparkParticle(startPos, baseDirection) {
+        // 随机方向偏移（缩小扩散角）
+        const spreadAngle = Math.PI / 6; // 30度扩散角
+        const randomAngle = Math.random() * spreadAngle - spreadAngle / 2;
+        const randomAxis = new THREE.Vector3(
+            Math.random() - 0.5,
+            Math.random() - 0.5,
+            Math.random() - 0.5
+        ).normalize();
+        
+        const direction = baseDirection.clone().applyAxisAngle(randomAxis, randomAngle);
+        
+        // 增加速度
+        const speed = 20.0 + Math.random() * 5.0;
+        
+        // 点状粒子使用更大的基础尺寸
+        const baseSize = 0.3; // 增大基础尺寸
+        const size = (this.config.sparkSize || baseSize) * (0.8 + Math.random() * 1.2);
+        
+        // 使用发光材质增强视觉效果
+        const material = new THREE.MeshBasicMaterial({
+            color: new THREE.Color(0xffaa00),
+            transparent: true,
+            opacity: 1.0, // 完全不透明
+            side: THREE.DoubleSide
+        });
+        
+        // 创建圆形点状几何体
+        const geometry = new THREE.CircleGeometry(size, 8); // 8边形近似圆形
+        
+        // 创建粒子
+        const particle = new THREE.Mesh(geometry, material);
+        particle.position.copy(startPos);
+        
+        // 让圆形平面朝向摄像机（始终面向观察者）
+        particle.lookAt(this.camera.position);
+        
+        // 随机颜色变化（橙黄色系，更鲜艳）
+        const hue = 0.05 + Math.random() * 0.15; // 橙黄到黄色
+        const saturation = 0.9 + Math.random() * 0.1; // 高饱和度
+        const lightness = 0.7 + Math.random() * 0.2; // 更亮
+        particle.material.color.setHSL(hue, saturation, lightness);
+        
+        particle.userData = {
+            velocity: direction.multiplyScalar(speed),
+            life: 0,
+            maxLife: 0.5 + Math.random() * 1.0,
+            initialScale: size,
+            direction: direction.clone()
+        };
+        
+        this.scene.add(particle);
+        return particle;
+    }
+    
+    /**
+     * 创建拖尾效果
+     * @param {THREE.Vector3[]} points - 路径点数组
+     */
+    createTrail(points) {
+        const trailGeometry = new THREE.BufferGeometry().setFromPoints(points);
+        const trail = new THREE.Line(trailGeometry, this.trailMaterial.clone());
+        trail.userData = {
+            age: 0,
+            maxAge: this.config.lifetime * 0.3,
+            isTrail: true
+        };
+        
+        this.scene.add(trail);
+        this.arcs.push(trail);
+    }
+    
+    /**
+     * 更新电弧系统
+     * @param {number} deltaTime - 时间增量
+     */
+    update(deltaTime) {
+        // 发射新电弧
+        if(Math.random() < this.config.intensity / 1000) {
+            this.emitArc();
+        }
+        
+        // 更新现有电弧
+        for (let i = this.arcs.length - 1; i >= 0; i--) {
+            const arc = this.arcs[i];
+            arc.userData.age += deltaTime;
+            
+            if (arc.userData.age >= arc.userData.maxAge) {
+                this.scene.remove(arc);
+                arc.geometry.dispose();
+                if (arc.material) arc.material.dispose();
+                this.arcs.splice(i, 1);
+                continue;
+            }
+            
+            // 更新电弧外观
+            const lifeRatio = arc.userData.age / arc.userData.maxAge;
+            
+            if (arc.userData.isTrail) {
+                // 拖尾效果
+                arc.material.opacity = 0.4 * (1 - lifeRatio);
+                arc.material.color.lerpColors(
+                    new THREE.Color(0x4488ff),
+                    new THREE.Color(0x001122),
+                    lifeRatio
+                );
+            } else {
+                // 主电弧
+                arc.material.opacity = 0.9 * (1 - lifeRatio);
+                
+                // 电弧闪烁效果
+                if (Math.random() < 0.1) {
+                    arc.material.opacity *= 0.3;
+                }
+            }
+        }
+
+        // 更新电火花粒子
+        for (let i = this.sparkParticles.length - 1; i >= 0; i--) {
+            const particle = this.sparkParticles[i];
+            const userData = particle.userData;
+            
+            userData.life += deltaTime;
+            
+            // 更新位置
+            particle.position.add(userData.velocity.clone().multiplyScalar(deltaTime));
+            
+            // 让圆形粒子始终面向摄像机
+            particle.lookAt(this.camera.position);
+            
+            const progress = userData.life / userData.maxLife;
+            
+            if (progress >= 1) {
+                this.scene.remove(particle);
+                particle.geometry.dispose();
+                particle.material.dispose();
+                this.sparkParticles.splice(i, 1);
+            } else {
+                // 更新透明度（淡出效果）
+                particle.material.opacity = 0.8 * (1 - progress);
+                
+                // 更新大小（缩小效果）- 点状粒子均匀缩放
+                const scale = userData.initialScale * (1 - progress * 0.5);
+                particle.scale.set(scale, scale, scale);
+            }
+        }
+    }
+    
+    /**
+     * 重置粒子系统
+     */
+    reset() {
+        // 清空所有电弧
+        for (const arc of this.arcs) {
+            this.scene.remove(arc);
+            arc.geometry.dispose();
+            if (arc.material) arc.material.dispose();
+        }
+        this.arcs = [];
+        
+        // 清理电火花粒子
+        for (const spark of this.sparkParticles) {
+            this.scene.remove(spark);
+            spark.geometry.dispose();
+            spark.material.dispose();
+        }
+        this.sparkParticles = [];
+    }
+    
+    /**
+     * 销毁粒子系统
+     */
+    dispose() {
+        // 清空所有电弧
+        this.reset();
+        
+        // 清理材质
+        if (this.arcMaterial) {
+            this.arcMaterial.dispose();
+        }
+        if (this.trailMaterial) {
+            this.trailMaterial.dispose();
+        }
+        if (this.sparkShaderMaterial) {
+            this.sparkShaderMaterial.dispose();
+        }
+        if (this.sparkGeometry) {
+            this.sparkGeometry.dispose();
+        }
+    }
+}

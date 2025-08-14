@@ -18,6 +18,11 @@
             <label>粗细: {{ sparkConfig.size }}</label>
             <input type="range" v-model="sparkConfig.size" min="0.01" max="0.2" step="0.01">
         </div>
+        
+        <div class="control-group">\             <label>梭形大小: {{ sparkConfig.sparkSize }}</label>\             <input type="range" v-model="sparkConfig.sparkSize" min="0.01" max="0.5" step="0.01">\         </div>
+         
+         <div class="control-group">\             <label>火花概率: {{ sparkConfig.sparkProbability }}</label>\             <input type="range" v-model="sparkConfig.sparkProbability" min="0" max="1" step="0.05">
+         </div>
 
         <div class="control-group">
             <label>持续时间: {{ sparkConfig.lifetime }}s</label>
@@ -85,6 +90,7 @@ import { GLTFLoader } from 'three/examples/jsm/loaders/GLTFLoader.js';
 import * as TWEEN from '@tweenjs/tween.js';
 import { random } from '@/utils/tools.js';
 import { ImprovedNoise } from 'three/examples/jsm/math/ImprovedNoise.js';
+import { SparkParticleSystem } from '@/utils/SparkParticleSystem.js';
 
 let stats, renderer, scene, textureLoader
 
@@ -104,7 +110,7 @@ let mesh = null; // 云模型
 // 电火花粒子系统配置
 const sparkConfig = reactive({
     enabled: false,
-    intensity: 160,      // 发射强度（降低频率）
+    intensity: 50,      // 发射强度（降低频率）
     speed: 400,         // 电弧速度
     size: 0.05,         // 电弧粗细
     lifetime: 0.15,     // 电弧持续时间（更短）
@@ -115,249 +121,15 @@ const sparkConfig = reactive({
     randomDirection: true, // 允许随机方向
     spread: 0.3,        // 更大的扩散角度
     trailLength: 3,     // 更短的拖尾
-    position: { x: 10, y: 10, z: 10 } // 电弧发射源位置
+    position: { x: 10, y: 10, z: 10 }, // 电弧发射源位置
+    sparkSize: 0.15,      // 梭形粒子大小
+    sparkProbability: 0.2  // 火花粒子发射概率
 });
 
 const isSparkActive = ref(true);
 let sparkSystem = null;
+let sparkParticles = null;
 
-// 电火花粒子系统类
-class SparkParticleSystem {
-    constructor(scene, config) {
-        this.scene = scene;
-        this.config = config;
-        this.particles = [];
-        this.arcs = []; // 电弧线段
-        this.clock = new THREE.Clock();
-        
-        this.init();
-    }
-    
-    // 初始化电火花系统
-    init() {
-        // 创建电弧材质
-        this.arcMaterial = new THREE.LineBasicMaterial({
-            color: 0xffffff,
-            transparent: true,
-            opacity: 0.9,
-            linewidth: 2
-        });
-        
-        // 创建拖尾材质
-        this.trailMaterial = new THREE.LineBasicMaterial({
-            color: 0x4488ff,
-            transparent: true,
-            opacity: 0.4,
-            linewidth: 1
-        });
-    }
-    
-    // 创建锯齿状电弧路径
-    createArcPath(start, end, segments = 8) {
-        const points = [];
-        const direction = end.clone().sub(start);
-        const length = direction.length();
-        
-        // 如果起点和终点相同，直接返回起点
-        if (length < 0.001) {
-            points.push(start.clone());
-            return points;
-        }
-        
-        // 创建垂直向量，避免NaN
-        let perp = new THREE.Vector3();
-        if (Math.abs(direction.x) > 0.001 || Math.abs(direction.y) > 0.001) {
-            perp.set(-direction.y, direction.x, 0).normalize();
-        } else {
-            // 如果方向主要是Z轴，使用X轴作为垂直方向
-            perp.set(1, 0, 0);
-        }
-        
-        for (let i = 0; i <= segments; i++) {
-            const t = i / segments;
-            const pos = start.clone().lerp(end, t);
-            
-            // 添加锯齿状偏移，确保不是NaN
-            const offset = Math.sin(t * Math.PI * 4) * length * 0.05 * (1 - t) || 0;
-            pos.add(perp.clone().multiplyScalar(offset));
-            
-            // 添加随机抖动
-            pos.x += (Math.random() - 0.5) * 0.1;
-            pos.y += (Math.random() - 0.5) * 0.1;
-            pos.z += (Math.random() - 0.5) * 0.1;
-            
-            // 确保所有坐标都是有效数字
-            if (isNaN(pos.x) || isNaN(pos.y) || isNaN(pos.z)) {
-                pos.set(start.x, start.y, start.z);
-            }
-            
-            points.push(pos);
-        }
-        
-        return points;
-    }
-    
-    // 发射电弧
-    emitArc() {
-        const count = Math.floor(this.config.intensity / 20);
-        const startPos = new THREE.Vector3(
-            this.config.position.x || 0,
-            this.config.position.y || 0,
-            this.config.position.z || 0
-        );
-        
-        for (let i = 0; i < count; i++) {
-            // 创建电弧终点，确保所有值都是有效数字
-            const dirX = this.config.direction.x || 0;
-            const dirY = this.config.direction.y || 0;
-            const dirZ = this.config.direction.z || 0;
-            const speed = this.config.speed || 100;
-            const lifetime = this.config.lifetime || 0.1;
-            
-            const endPos = new THREE.Vector3(
-                dirX * speed * lifetime * 0.1,
-                dirY * speed * lifetime * 0.1,
-                dirZ * speed * lifetime * 0.1
-            );
-            
-            // 添加扩散角度
-            if (this.config.randomDirection) {
-                const spread = this.config.spread || 0;
-                endPos.x += (Math.random() - 0.5) * spread * 50;
-                endPos.y += (Math.random() - 0.5) * spread * 50;
-                endPos.z += (Math.random() - 0.5) * spread * 50;
-            }
-            
-            // 应用重力影响
-            const gravity = this.config.gravity || -100;
-            endPos.y += 0.5 * gravity * lifetime * lifetime;
-            
-            // 将终点位置转换为世界坐标
-            endPos.add(startPos);
-            
-            // 确保终点与起点有足够距离
-            if (endPos.distanceTo(startPos) < 0.01) {
-                endPos.x += 0.1;
-                endPos.y += 0.1;
-                endPos.z += 0.1;
-            }
-            
-            // 创建电弧路径
-            const points = this.createArcPath(
-                startPos.clone(),
-                endPos,
-                6 + Math.floor(Math.random() * 4)
-            );
-            
-            // 创建电弧线段
-            const geometry = new THREE.BufferGeometry().setFromPoints(points);
-            const arc = new THREE.Line(geometry, this.arcMaterial.clone());
-            
-            // 设置电弧属性
-            arc.userData = {
-                age: 0,
-                maxAge: this.config.lifetime * (0.5 + Math.random() * 0.5),
-                startTime: this.clock.getElapsedTime()
-            };
-            
-            // 设置电弧颜色
-            const material = arc.material;
-            material.color.setStyle(this.config.color1);
-            material.opacity = 0.9;
-            
-            this.scene.add(arc);
-            this.arcs.push(arc);
-            
-            // 创建拖尾效果
-            this.createTrail(points);
-        }
-    }
-    
-    // 创建拖尾效果
-    createTrail(points) {
-        const trailGeometry = new THREE.BufferGeometry().setFromPoints(points);
-        const trail = new THREE.Line(trailGeometry, this.trailMaterial.clone());
-        trail.userData = {
-            age: 0,
-            maxAge: this.config.lifetime * 0.3,
-            isTrail: true
-        };
-        
-        this.scene.add(trail);
-        this.arcs.push(trail);
-    }
-    
-    // 更新电弧系统
-    update(deltaTime) {
-        // 发射新电弧
-        // if (isSparkActive.value) {
-        //     this.emitArc();
-        // }
-        if(Math.random() < 0.05) {
-            this.emitArc();
-        }
-        
-        // 更新现有电弧
-        for (let i = this.arcs.length - 1; i >= 0; i--) {
-            const arc = this.arcs[i];
-            arc.userData.age += deltaTime;
-            
-            if (arc.userData.age >= arc.userData.maxAge) {
-                this.scene.remove(arc);
-                arc.geometry.dispose();
-                if (arc.material) arc.material.dispose();
-                this.arcs.splice(i, 1);
-                continue;
-            }
-            
-            // 更新电弧外观
-            const lifeRatio = arc.userData.age / arc.userData.maxAge;
-            
-            if (arc.userData.isTrail) {
-                // 拖尾效果
-                arc.material.opacity = 0.4 * (1 - lifeRatio);
-                arc.material.color.lerpColors(
-                    new THREE.Color(0x4488ff),
-                    new THREE.Color(0x001122),
-                    lifeRatio
-                );
-            } else {
-                // 主电弧
-                arc.material.opacity = 0.9 * (1 - lifeRatio);
-                
-                // 电弧闪烁效果
-                if (Math.random() < 0.1) {
-                    arc.material.opacity *= 0.3;
-                }
-            }
-        }
-    }
-    
-    // 重置粒子系统
-    reset() {
-        // 清空所有电弧
-        for (const arc of this.arcs) {
-            this.scene.remove(arc);
-            arc.geometry.dispose();
-            if (arc.material) arc.material.dispose();
-        }
-        this.arcs = [];
-    }
-    
-    // 销毁粒子系统
-    dispose() {
-        // 清空所有电弧
-        this.reset();
-        
-        // 清理材质
-        if (this.arcMaterial) {
-            this.arcMaterial.dispose();
-        }
-        if (this.trailMaterial) {
-            this.trailMaterial.dispose();
-        }
-    }
-}
 
 // 创建渲染器
 const createRender = (dom) => {
@@ -461,7 +233,7 @@ onMounted(() => {
     scene.add(createGridHelper());
     
     // 创建电火花粒子系统
-        sparkSystem = new SparkParticleSystem(scene, sparkConfig);
+    sparkSystem = new SparkParticleSystem(scene, sparkConfig, camera);
     
     container.value.addEventListener('click', clickScene, false);
     
@@ -504,6 +276,7 @@ onMounted(() => {
 }
 
 .spark-controls {
+    display: none;
     position: absolute;
     top: 20px;
     right: 20px;

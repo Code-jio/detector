@@ -40,6 +40,13 @@
         </div>
         
         <div class="control-group">
+            <label>发射源位置</label>
+            <div>X: <input type="range" v-model="sparkConfig.position.x" min="-10" max="10" step="0.5"></div>
+            <div>Y: <input type="range" v-model="sparkConfig.position.y" min="-10" max="10" step="0.5"></div>
+            <div>Z: <input type="range" v-model="sparkConfig.position.z" min="-10" max="10" step="0.5"></div>
+        </div>
+        
+        <div class="control-group">
             <label>发射方向</label>
             <div>X: <input type="range" v-model="sparkConfig.direction.x" min="-2" max="2" step="0.1"></div>
             <div>Y: <input type="range" v-model="sparkConfig.direction.y" min="-2" max="2" step="0.1"></div>
@@ -97,17 +104,18 @@ let mesh = null; // 云模型
 // 电火花粒子系统配置
 const sparkConfig = reactive({
     enabled: false,
-    intensity: 80,      // 发射强度（降低频率）
-    speed: 600,         // 电弧速度
+    intensity: 160,      // 发射强度（降低频率）
+    speed: 400,         // 电弧速度
     size: 0.05,         // 电弧粗细
     lifetime: 0.15,     // 电弧持续时间（更短）
     gravity: -800,      // 更强的重力
-    direction: { x: 1.5, y: 2, z: 0.5 }, // 向上倾斜的发射方向
+    direction: { x: 1, y: 0, z: 0 }, // 向上倾斜的发射方向
     color1: '#ffffff',  // 电弧主颜色（亮白色）
     color2: '#0066ff',  // 电弧边缘颜色（蓝色）
     randomDirection: true, // 允许随机方向
     spread: 0.3,        // 更大的扩散角度
-    trailLength: 3      // 更短的拖尾
+    trailLength: 3,     // 更短的拖尾
+    position: { x: 10, y: 10, z: 10 } // 电弧发射源位置
 });
 
 const isSparkActive = ref(true);
@@ -149,20 +157,39 @@ class SparkParticleSystem {
         const points = [];
         const direction = end.clone().sub(start);
         const length = direction.length();
-        const perp = new THREE.Vector3(-direction.y, direction.x, 0).normalize();
+        
+        // 如果起点和终点相同，直接返回起点
+        if (length < 0.001) {
+            points.push(start.clone());
+            return points;
+        }
+        
+        // 创建垂直向量，避免NaN
+        let perp = new THREE.Vector3();
+        if (Math.abs(direction.x) > 0.001 || Math.abs(direction.y) > 0.001) {
+            perp.set(-direction.y, direction.x, 0).normalize();
+        } else {
+            // 如果方向主要是Z轴，使用X轴作为垂直方向
+            perp.set(1, 0, 0);
+        }
         
         for (let i = 0; i <= segments; i++) {
             const t = i / segments;
             const pos = start.clone().lerp(end, t);
             
-            // 添加锯齿状偏移
-            const offset = Math.sin(t * Math.PI * 4) * length * 0.05 * (1 - t);
+            // 添加锯齿状偏移，确保不是NaN
+            const offset = Math.sin(t * Math.PI * 4) * length * 0.05 * (1 - t) || 0;
             pos.add(perp.clone().multiplyScalar(offset));
             
             // 添加随机抖动
             pos.x += (Math.random() - 0.5) * 0.1;
             pos.y += (Math.random() - 0.5) * 0.1;
             pos.z += (Math.random() - 0.5) * 0.1;
+            
+            // 确保所有坐标都是有效数字
+            if (isNaN(pos.x) || isNaN(pos.y) || isNaN(pos.z)) {
+                pos.set(start.x, start.y, start.z);
+            }
             
             points.push(pos);
         }
@@ -173,29 +200,51 @@ class SparkParticleSystem {
     // 发射电弧
     emitArc() {
         const count = Math.floor(this.config.intensity / 20);
+        const startPos = new THREE.Vector3(
+            this.config.position.x || 0,
+            this.config.position.y || 0,
+            this.config.position.z || 0
+        );
         
         for (let i = 0; i < count; i++) {
-            // 创建电弧终点
+            // 创建电弧终点，确保所有值都是有效数字
+            const dirX = this.config.direction.x || 0;
+            const dirY = this.config.direction.y || 0;
+            const dirZ = this.config.direction.z || 0;
+            const speed = this.config.speed || 100;
+            const lifetime = this.config.lifetime || 0.1;
+            
             const endPos = new THREE.Vector3(
-                this.config.direction.x * this.config.speed * this.config.lifetime * 0.1,
-                this.config.direction.y * this.config.speed * this.config.lifetime * 0.1,
-                this.config.direction.z * this.config.speed * this.config.lifetime * 0.1
+                dirX * speed * lifetime * 0.1,
+                dirY * speed * lifetime * 0.1,
+                dirZ * speed * lifetime * 0.1
             );
             
             // 添加扩散角度
             if (this.config.randomDirection) {
-                const spread = this.config.spread;
+                const spread = this.config.spread || 0;
                 endPos.x += (Math.random() - 0.5) * spread * 50;
                 endPos.y += (Math.random() - 0.5) * spread * 50;
                 endPos.z += (Math.random() - 0.5) * spread * 50;
             }
             
             // 应用重力影响
-            endPos.y += 0.5 * this.config.gravity * this.config.lifetime * this.config.lifetime;
+            const gravity = this.config.gravity || -100;
+            endPos.y += 0.5 * gravity * lifetime * lifetime;
+            
+            // 将终点位置转换为世界坐标
+            endPos.add(startPos);
+            
+            // 确保终点与起点有足够距离
+            if (endPos.distanceTo(startPos) < 0.01) {
+                endPos.x += 0.1;
+                endPos.y += 0.1;
+                endPos.z += 0.1;
+            }
             
             // 创建电弧路径
             const points = this.createArcPath(
-                new THREE.Vector3(0, 0, 0),
+                startPos.clone(),
                 endPos,
                 6 + Math.floor(Math.random() * 4)
             );
@@ -241,7 +290,10 @@ class SparkParticleSystem {
     // 更新电弧系统
     update(deltaTime) {
         // 发射新电弧
-        if (isSparkActive.value) {
+        // if (isSparkActive.value) {
+        //     this.emitArc();
+        // }
+        if(Math.random() < 0.05) {
             this.emitArc();
         }
         
@@ -283,15 +335,27 @@ class SparkParticleSystem {
     
     // 重置粒子系统
     reset() {
-        this.particles = [];
-        this.mesh.count = 0;
+        // 清空所有电弧
+        for (const arc of this.arcs) {
+            this.scene.remove(arc);
+            arc.geometry.dispose();
+            if (arc.material) arc.material.dispose();
+        }
+        this.arcs = [];
     }
     
     // 销毁粒子系统
     dispose() {
-        this.scene.remove(this.mesh);
-        this.geometry.dispose();
-        this.material.dispose();
+        // 清空所有电弧
+        this.reset();
+        
+        // 清理材质
+        if (this.arcMaterial) {
+            this.arcMaterial.dispose();
+        }
+        if (this.trailMaterial) {
+            this.trailMaterial.dispose();
+        }
     }
 }
 

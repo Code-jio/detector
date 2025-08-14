@@ -13,7 +13,20 @@ export class SparkParticleSystem {
      */
     constructor(scene, config, camera) {
         this.scene = scene;
-        this.config = config;
+        this.config = {
+            position: new THREE.Vector3(0, 0, 0),
+            direction: new THREE.Vector3(1, 0, 0),
+            intensity: 5,
+            color: new THREE.Color(0x00aaff),
+            lifetime: 2,
+            sparkLifetime: 1.5, // 火花粒子存活时间
+            gravity: 9.8,
+            airResistance: 0.1,
+            maxParticles: 1000,
+            cleanupInterval: 1.0,
+            autoCleanup: true,
+            ...config
+        };
         this.camera = camera;
         this.particles = [];
         this.arcs = []; // 电弧线段
@@ -303,9 +316,11 @@ export class SparkParticleSystem {
         particle.userData = {
             velocity: direction.multiplyScalar(speed),
             life: 0,
-            maxLife: 0.5 + Math.random() * 1.0,
+            maxLife: this.config.sparkLifetime || (0.8 + Math.random() * 1.5), // 火花存活时间
             initialScale: size,
-            direction: direction.clone()
+            direction: direction.clone(),
+            gravity: this.config.gravity || 9.8, // 重力加速度
+            airResistance: this.config.airResistance || 0.15 // 空气阻力
         };
         
         this.scene.add(particle);
@@ -394,6 +409,12 @@ export class SparkParticleSystem {
             
             // 只有在可见时才更新位置和外观
             if (this.isVisible) {
+                // 应用重力影响
+                userData.velocity.y -= userData.gravity * deltaTime;
+                
+                // 应用空气阻力
+                userData.velocity.multiplyScalar(1 - userData.airResistance * deltaTime);
+                
                 // 更新位置
                 particle.position.add(userData.velocity.clone().multiplyScalar(deltaTime));
                 

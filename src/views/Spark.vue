@@ -138,11 +138,11 @@ let mesh = null; // 云模型
 // 电火花粒子系统配置
 const sparkConfig = reactive({
     enabled: false,
-    intensity: 100,      // 发射强度（降低频率）
+    intensity: 80,      // 发射强度（降低频率）
     speed: 400,         // 电弧速度
     size: 0.05,         // 电弧粗细
     lifetime: 0.15,     // 电弧持续时间（更短）
-    gravity: -800,      // 更强的重力
+    gravity: 50,      // 更强的重力
     direction: { x: 1, y: 0, z: 0 }, // 向上倾斜的发射方向
     color1: '#ffffff',  // 电弧主颜色（亮白色）
     color2: '#0066ff',  // 电弧边缘颜色（蓝色）
@@ -395,6 +395,7 @@ onMounted(() => {
 }
 
 .spark-controls {
+    display: none;
     position: absolute;
     top: 10px;
     right: 10px;

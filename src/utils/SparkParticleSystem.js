@@ -31,6 +31,20 @@ export class SparkParticleSystem {
         this.particles = [];
         this.arcs = []; // 电弧线段
         this.sparkParticles = []; // 电火花粒子
+        
+        // 创建根实体组，整合所有元素
+        this.rootGroup = new THREE.Group();
+        this.rootGroup.name = 'SparkParticleSystem';
+        
+        // 创建子组管理不同类型的元素
+        this.arcGroup = new THREE.Group();
+        this.arcGroup.name = 'ArcGroup';
+        this.sparkGroup = new THREE.Group();
+        this.sparkGroup.name = 'SparkGroup';
+        
+        // 将子组添加到根组
+        this.rootGroup.add(this.arcGroup);
+        this.rootGroup.add(this.sparkGroup);
         this.clock = new THREE.Clock();
         
         // 显示控制相关属性
@@ -238,7 +252,7 @@ export class SparkParticleSystem {
             material.color.setStyle(this.config.color1);
             material.opacity = 0.9;
 
-            this.scene.add(arc);
+            this.arcGroup.add(arc);
             this.arcs.push(arc);
 
             // 创建拖尾效果
@@ -323,7 +337,7 @@ export class SparkParticleSystem {
             airResistance: this.config.airResistance || 0.15 // 空气阻力
         };
         
-        this.scene.add(particle);
+        this.sparkGroup.add(particle);
         return particle;
     }
     
@@ -340,7 +354,7 @@ export class SparkParticleSystem {
             isTrail: true
         };
         
-        this.scene.add(trail);
+        this.arcGroup.add(trail);
         this.arcs.push(trail);
     }
     
@@ -368,7 +382,11 @@ export class SparkParticleSystem {
             arc.userData.age += deltaTime;
             
             if (arc.userData.age >= arc.userData.maxAge) {
-                this.scene.remove(arc);
+                if (arc.userData.isTrail) {
+                    this.arcGroup.remove(arc);
+                } else {
+                    this.arcGroup.remove(arc);
+                }
                 arc.geometry.dispose();
                 if (arc.material) arc.material.dispose();
                 this.arcs.splice(i, 1);
@@ -425,7 +443,7 @@ export class SparkParticleSystem {
             const progress = userData.life / userData.maxLife;
             
             if (progress >= 1) {
-                this.scene.remove(particle);
+                this.sparkGroup.remove(particle);
                 particle.geometry.dispose();
                 particle.material.dispose();
                 this.sparkParticles.splice(i, 1);
@@ -446,7 +464,7 @@ export class SparkParticleSystem {
     reset() {
         // 清空所有电弧
         for (const arc of this.arcs) {
-            this.scene.remove(arc);
+            this.arcGroup.remove(arc);
             arc.geometry.dispose();
             if (arc.material) arc.material.dispose();
         }
@@ -454,7 +472,7 @@ export class SparkParticleSystem {
         
         // 清理电火花粒子
         for (const spark of this.sparkParticles) {
-            this.scene.remove(spark);
+            this.sparkGroup.remove(spark);
             spark.geometry.dispose();
             spark.material.dispose();
         }
@@ -655,6 +673,30 @@ export class SparkParticleSystem {
     }
 
     /**
+     * 获取整体实体，包含所有电弧和火花粒子
+     * @returns {THREE.Group} 包含所有元素的根实体组
+     */
+    getEntity() {
+        return this.rootGroup;
+    }
+    
+    /**
+     * 将整体实体添加到指定场景
+     * @param {THREE.Scene} scene - 目标场景
+     */
+    addToScene() {
+        this.scene.add(this.rootGroup);
+    }
+    
+    /**
+     * 从指定场景移除整体实体
+     * @param {THREE.Scene} scene - 目标场景
+     */
+    removeFromScene(scene) {
+        scene.remove(this.rootGroup);
+    }
+    
+    /**
      * 获取当前状态摘要
      * @returns {Object} 当前状态摘要
      */
@@ -665,7 +707,8 @@ export class SparkParticleSystem {
             arcsCount: this.arcs.length,
             particlesCount: this.sparkParticles.length,
             currentStateId: this.currentStateId,
-            savedStatesCount: this.savedStates.size
+            savedStatesCount: this.savedStates.size,
+            entity: this.rootGroup
         };
     }
 

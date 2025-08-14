@@ -347,6 +347,8 @@ onMounted(() => {
     
     // 创建电火花粒子系统
     sparkSystem = new SparkParticleSystem(scene, sparkConfig, camera);
+    sparkSystem.addToScene()
+    console.log(sparkSystem, "sparkSystem", scene);
     
     container.value.addEventListener('click', clickScene, false);
     

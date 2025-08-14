@@ -20,6 +20,12 @@ export class SparkParticleSystem {
         this.sparkParticles = []; // 电火花粒子
         this.clock = new THREE.Clock();
         
+        // 显示控制相关属性
+        this.isVisible = true;
+        this.isPaused = false;
+        this.savedStates = new Map(); // 保存的状态
+        this.currentStateId = null;
+        
         this.init();
     }
     
@@ -328,12 +334,20 @@ export class SparkParticleSystem {
      * @param {number} deltaTime - 时间增量
      */
     update(deltaTime) {
-        // 发射新电弧
-        if(Math.random() < this.config.intensity / 1000) {
-            this.emitArc();
+        // 如果系统被暂停，则不更新
+        if (this.isPaused) {
+            return;
         }
         
-        // 更新现有电弧
+        // 如果系统不可见，仍然需要更新生命周期，但不发射新电弧
+        if (this.isVisible) {
+            // 发射新电弧
+            if(Math.random() < this.config.intensity / 1000) {
+                this.emitArc();
+            }
+        }
+        
+        // 更新现有电弧（无论是否可见，都要更新生命周期）
         for (let i = this.arcs.length - 1; i >= 0; i--) {
             const arc = this.arcs[i];
             arc.userData.age += deltaTime;
@@ -346,40 +360,46 @@ export class SparkParticleSystem {
                 continue;
             }
             
-            // 更新电弧外观
-            const lifeRatio = arc.userData.age / arc.userData.maxAge;
-            
-            if (arc.userData.isTrail) {
-                // 拖尾效果
-                arc.material.opacity = 0.4 * (1 - lifeRatio);
-                arc.material.color.lerpColors(
-                    new THREE.Color(0x4488ff),
-                    new THREE.Color(0x001122),
-                    lifeRatio
-                );
-            } else {
-                // 主电弧
-                arc.material.opacity = 0.9 * (1 - lifeRatio);
+            // 只有在可见时才更新外观
+            if (this.isVisible) {
+                // 更新电弧外观
+                const lifeRatio = arc.userData.age / arc.userData.maxAge;
                 
-                // 电弧闪烁效果
-                if (Math.random() < 0.1) {
-                    arc.material.opacity *= 0.3;
+                if (arc.userData.isTrail) {
+                    // 拖尾效果
+                    arc.material.opacity = 0.4 * (1 - lifeRatio);
+                    arc.material.color.lerpColors(
+                        new THREE.Color(0x4488ff),
+                        new THREE.Color(0x001122),
+                        lifeRatio
+                    );
+                } else {
+                    // 主电弧
+                    arc.material.opacity = 0.9 * (1 - lifeRatio);
+                    
+                    // 电弧闪烁效果
+                    if (Math.random() < 0.1) {
+                        arc.material.opacity *= 0.3;
+                    }
                 }
             }
         }
 
-        // 更新电火花粒子
+        // 更新电火花粒子（无论是否可见，都要更新生命周期）
         for (let i = this.sparkParticles.length - 1; i >= 0; i--) {
             const particle = this.sparkParticles[i];
             const userData = particle.userData;
             
             userData.life += deltaTime;
             
-            // 更新位置
-            particle.position.add(userData.velocity.clone().multiplyScalar(deltaTime));
-            
-            // 让圆形粒子始终面向摄像机
-            particle.lookAt(this.camera.position);
+            // 只有在可见时才更新位置和外观
+            if (this.isVisible) {
+                // 更新位置
+                particle.position.add(userData.velocity.clone().multiplyScalar(deltaTime));
+                
+                // 让圆形粒子始终面向摄像机
+                particle.lookAt(this.camera.position);
+            }
             
             const progress = userData.life / userData.maxLife;
             
@@ -388,7 +408,7 @@ export class SparkParticleSystem {
                 particle.geometry.dispose();
                 particle.material.dispose();
                 this.sparkParticles.splice(i, 1);
-            } else {
+            } else if (this.isVisible) {
                 // 更新透明度（淡出效果）
                 particle.material.opacity = 0.8 * (1 - progress);
                 
@@ -421,6 +441,214 @@ export class SparkParticleSystem {
     }
     
     /**
+     * 显示粒子系统
+     */
+    show() {
+        this.isVisible = true;
+        this._updateVisibility();
+    }
+
+    /**
+     * 隐藏粒子系统
+     */
+    hide() {
+        this.isVisible = false;
+        this._updateVisibility();
+    }
+
+    /**
+     * 切换显示/隐藏状态
+     */
+    toggleVisibility() {
+        this.isVisible = !this.isVisible;
+        this._updateVisibility();
+    }
+
+    /**
+     * 更新所有对象的可见性
+     * @private
+     */
+    _updateVisibility() {
+        const visible = this.isVisible;
+        
+        // 更新电弧可见性
+        this.arcs.forEach(arc => {
+            arc.visible = visible;
+        });
+        
+        // 更新电火花粒子可见性
+        this.sparkParticles.forEach(particle => {
+            particle.visible = visible;
+        });
+    }
+
+    /**
+     * 暂停粒子系统
+     */
+    pause() {
+        this.isPaused = true;
+    }
+
+    /**
+     * 恢复粒子系统
+     */
+    resume() {
+        this.isPaused = false;
+    }
+
+    /**
+     * 检查是否暂停
+     * @returns {boolean} 是否暂停
+     */
+    isPaused() {
+        return this.isPaused;
+    }
+
+    /**
+     * 保存当前状态
+     * @param {string} stateId - 状态ID
+     * @param {Object} additionalData - 额外保存的数据
+     */
+    saveState(stateId, additionalData = {}) {
+        const state = {
+            config: { ...this.config },
+            isVisible: this.isVisible,
+            isPaused: this.isPaused,
+            arcsCount: this.arcs.length,
+            particlesCount: this.sparkParticles.length,
+            timestamp: Date.now(),
+            ...additionalData
+        };
+        
+        this.savedStates.set(stateId, state);
+        this.currentStateId = stateId;
+        
+        return state;
+    }
+
+    /**
+     * 加载保存的状态
+     * @param {string} stateId - 状态ID
+     * @returns {boolean} 是否成功加载
+     */
+    loadState(stateId) {
+        const state = this.savedStates.get(stateId);
+        if (!state) {
+            console.warn(`状态 ${stateId} 不存在`);
+            return false;
+        }
+        
+        // 更新配置
+        Object.assign(this.config, state.config);
+        
+        // 更新显示状态
+        this.isVisible = state.isVisible;
+        this.isPaused = state.isPaused;
+        
+        this.currentStateId = stateId;
+        
+        // 更新可见性
+        this._updateVisibility();
+        
+        return true;
+    }
+
+    /**
+     * 获取所有保存的状态ID
+     * @returns {string[]} 状态ID数组
+     */
+    getSavedStateIds() {
+        return Array.from(this.savedStates.keys());
+    }
+
+    /**
+     * 获取保存的状态信息
+     * @param {string} stateId - 状态ID
+     * @returns {Object|null} 状态信息
+     */
+    getStateInfo(stateId) {
+        const state = this.savedStates.get(stateId);
+        if (!state) return null;
+        
+        return {
+            ...state,
+            id: stateId
+        };
+    }
+
+    /**
+     * 删除保存的状态
+     * @param {string} stateId - 状态ID
+     * @returns {boolean} 是否成功删除
+     */
+    deleteState(stateId) {
+        if (this.savedStates.has(stateId)) {
+            this.savedStates.delete(stateId);
+            if (this.currentStateId === stateId) {
+                this.currentStateId = null;
+            }
+            return true;
+        }
+        return false;
+    }
+
+    /**
+     * 导出所有状态到JSON
+     * @returns {string} JSON字符串
+     */
+    exportStates() {
+        const exportData = {
+            states: Array.from(this.savedStates.entries()).map(([id, state]) => [id, state]),
+            currentStateId: this.currentStateId,
+            version: '1.0.0'
+        };
+        return JSON.stringify(exportData, null, 2);
+    }
+
+    /**
+     * 从JSON导入状态
+     * @param {string} jsonData - JSON字符串
+     * @returns {boolean} 是否成功导入
+     */
+    importStates(jsonData) {
+        try {
+            const importData = JSON.parse(jsonData);
+            
+            if (importData.states && Array.isArray(importData.states)) {
+                this.savedStates.clear();
+                
+                importData.states.forEach(([id, state]) => {
+                    this.savedStates.set(id, state);
+                });
+                
+                if (importData.currentStateId) {
+                    this.currentStateId = importData.currentStateId;
+                }
+                
+                return true;
+            }
+        } catch (error) {
+            console.error('导入状态失败:', error);
+        }
+        return false;
+    }
+
+    /**
+     * 获取当前状态摘要
+     * @returns {Object} 当前状态摘要
+     */
+    getCurrentStateSummary() {
+        return {
+            isVisible: this.isVisible,
+            isPaused: this.isPaused,
+            arcsCount: this.arcs.length,
+            particlesCount: this.sparkParticles.length,
+            currentStateId: this.currentStateId,
+            savedStatesCount: this.savedStates.size
+        };
+    }
+
+    /**
      * 销毁粒子系统
      */
     dispose() {
@@ -440,5 +668,8 @@ export class SparkParticleSystem {
         if (this.sparkGeometry) {
             this.sparkGeometry.dispose();
         }
+        
+        // 清理保存的状态
+        this.savedStates.clear();
     }
 }

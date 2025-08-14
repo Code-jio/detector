@@ -78,6 +78,34 @@
         <div class="control-buttons">
             <button @click="toggleSpark">{{ isSparkActive ? '暂停' : '启动' }}</button>
             <button @click="resetSpark">重置</button>
+            <button @click="toggleVisibility">{{ isVisible ? '隐藏' : '显示' }}</button>
+        </div>
+        
+        <div class="control-group">
+            <h4>状态管理</h4>
+            <div>
+                <button @click="saveCurrentState">保存当前状态</button>
+                <input v-model="stateName" placeholder="状态名称" style="width: 100px; margin-left: 5px;">
+            </div>
+            <div style="margin-top: 10px;">
+                <select v-model="selectedState" @change="loadSelectedState" style="width: 150px;">
+                    <option value="">选择状态...</option>
+                    <option v-for="state in savedStates" :key="state.id" :value="state.id">
+                        {{ state.name }} ({{ state.timestamp }})
+                    </option>
+                </select>
+                <button @click="deleteSelectedState" :disabled="!selectedState">删除</button>
+            </div>
+        </div>
+        
+        <div class="control-group">
+            <h4>系统信息</h4>
+            <div>电弧数量: {{ systemInfo.arcsCount }}</div>
+            <div>粒子数量: {{ systemInfo.particlesCount }}</div>
+            <div>保存状态: {{ systemInfo.savedStatesCount }}</div>
+            <div>当前状态: {{ systemInfo.currentStateId || '无' }}</div>
+            <div>可见: {{ systemInfo.isVisible ? '是' : '否' }}</div>
+            <div>暂停: {{ systemInfo.isPaused ? '是' : '否' }}</div>
         </div>
     </div>
 </template>
@@ -110,7 +138,7 @@ let mesh = null; // 云模型
 // 电火花粒子系统配置
 const sparkConfig = reactive({
     enabled: false,
-    intensity: 50,      // 发射强度（降低频率）
+    intensity: 100,      // 发射强度（降低频率）
     speed: 400,         // 电弧速度
     size: 0.05,         // 电弧粗细
     lifetime: 0.15,     // 电弧持续时间（更短）
@@ -123,12 +151,26 @@ const sparkConfig = reactive({
     trailLength: 3,     // 更短的拖尾
     position: { x: 10, y: 10, z: 10 }, // 电弧发射源位置
     sparkSize: 0.15,      // 梭形粒子大小
-    sparkProbability: 0.2  // 火花粒子发射概率
+    sparkProbability: 0.1  // 火花粒子发射概率
 });
 
 const isSparkActive = ref(true);
 let sparkSystem = null;
 let sparkParticles = null;
+
+// 新添加的状态管理变量
+const isVisible = ref(true);
+const stateName = ref('');
+const selectedState = ref('');
+const savedStates = ref([]);
+const systemInfo = ref({
+    arcsCount: 0,
+    particlesCount: 0,
+    savedStatesCount: 0,
+    currentStateId: null,
+    isVisible: true,
+    isPaused: false
+});
 
 
 // 创建渲染器
@@ -207,11 +249,82 @@ const toggleSpark = () => {
     isSparkActive.value = !isSparkActive.value;
 };
 
+// 重置电火花
 const resetSpark = () => {
     if (sparkSystem) {
         sparkSystem.reset();
     }
-};
+}
+
+// 切换可见性
+const toggleVisibility = () => {
+    if (sparkSystem) {
+        if (isVisible.value) {
+            sparkSystem.hide();
+        } else {
+            sparkSystem.show();
+        }
+        isVisible.value = !isVisible.value;
+        updateSystemInfo();
+    }
+}
+
+// 保存当前状态
+const saveCurrentState = () => {
+    if (sparkSystem && stateName.value) {
+        const state = sparkSystem.saveState(stateName.value, {
+            name: stateName.value,
+            description: `保存于 ${new Date().toLocaleTimeString()}`
+        });
+        
+        // 更新保存状态列表
+        updateSavedStatesList();
+        stateName.value = '';
+        updateSystemInfo();
+    }
+}
+
+// 加载选中的状态
+const loadSelectedState = () => {
+    if (sparkSystem && selectedState.value) {
+        sparkSystem.loadState(selectedState.value);
+        updateSystemInfo();
+    }
+}
+
+// 删除选中的状态
+const deleteSelectedState = () => {
+    if (sparkSystem && selectedState.value) {
+        sparkSystem.deleteState(selectedState.value);
+        selectedState.value = '';
+        updateSavedStatesList();
+        updateSystemInfo();
+    }
+}
+
+// 更新保存状态列表
+const updateSavedStatesList = () => {
+    if (sparkSystem) {
+        const stateIds = sparkSystem.getSavedStateIds();
+        savedStates.value = stateIds.map(id => {
+            const info = sparkSystem.getStateInfo(id);
+            return {
+                id,
+                name: info.name || id,
+                timestamp: new Date(info.timestamp).toLocaleTimeString(),
+                ...info
+            };
+        });
+    }
+}
+
+// 更新系统信息
+const updateSystemInfo = () => {
+    if (sparkSystem) {
+        const summary = sparkSystem.getCurrentStateSummary();
+        systemInfo.value = summary;
+    }
+}
 
 // 监听配置变化
 watch(sparkConfig, () => {
@@ -252,6 +365,11 @@ onMounted(() => {
         // 更新电火花粒子系统
         if (sparkSystem) {
             sparkSystem.update(deltaTime);
+            
+            // 每30帧更新一次系统信息（避免频繁更新）
+            if (Math.random() < 0.03) {
+                updateSystemInfo();
+            }
         }
         
         renderer.render(scene, camera);
@@ -264,7 +382,8 @@ onMounted(() => {
 <style scoped lang='scss'>
 .container {
     width: 100%;
-    height: 100%;
+    height: 100vh;
+    display: block;
     z-index: 1;
 }
 
@@ -276,131 +395,177 @@ onMounted(() => {
 }
 
 .spark-controls {
-    display: none;
     position: absolute;
-    top: 20px;
-    right: 20px;
+    top: 10px;
+    right: 10px;
     background: rgba(0, 0, 0, 0.8);
-    color: #fff;
-    padding: 20px;
-    border-radius: 10px;
-    min-width: 250px;
+    color: white;
+    padding: 15px;
+    border-radius: 8px;
+    width: 280px;
+    max-height: 90vh;
+    overflow-y: auto;
+    box-shadow: 0 4px 8px rgba(0, 0, 0, 0.3);
     z-index: 10;
     backdrop-filter: blur(10px);
     border: 1px solid rgba(0, 255, 255, 0.3);
-    box-shadow: 0 0 20px rgba(0, 255, 255, 0.2);
-    
-    h3 {
-        margin: 0 0 15px 0;
-        color: #00ffff;
-        text-align: center;
-        font-size: 16px;
-        text-shadow: 0 0 10px rgba(0, 255, 255, 0.5);
-    }
-    
-    .control-group {
-        margin-bottom: 12px;
-        display: flex;
-        align-items: center;
-        gap: 10px;
-        
-        label {
-            min-width: 80px;
-            font-size: 12px;
-            color: #ccc;
-        }
-        
-        input[type="range"] {
-            flex: 1;
-            height: 4px;
-            background: rgba(0, 255, 255, 0.3);
-            border-radius: 2px;
-            outline: none;
-            
-            &::-webkit-slider-thumb {
-                appearance: none;
-                width: 12px;
-                height: 12px;
-                background: #00ffff;
-                border-radius: 50%;
-                cursor: pointer;
-                box-shadow: 0 0 5px rgba(0, 255, 255, 0.5);
-            }
-        }
-        
-        input[type="color"] {
-            width: 30px;
-            height: 20px;
-            border: none;
-            border-radius: 3px;
-            cursor: pointer;
-        }
-        
-        input[type="checkbox"] {
-            margin-right: 5px;
-        }
-        
-        span {
-            min-width: 40px;
-            font-size: 11px;
-            color: #00ffff;
-            text-align: right;
-        }
-    }
-    
-    .color-group {
-        display: flex;
-        align-items: center;
-        gap: 10px;
-    }
-    
-    .control-buttons {
-        display: flex;
-        gap: 10px;
-        margin-top: 15px;
-        
-        button {
-            flex: 1;
-            padding: 8px 12px;
-            background: rgba(0, 255, 255, 0.2);
-            border: 1px solid #00ffff;
-            color: #00ffff;
-            border-radius: 5px;
-            cursor: pointer;
-            font-size: 12px;
-            transition: all 0.3s ease;
-            
-            &:hover {
-                background: rgba(0, 255, 255, 0.4);
-                box-shadow: 0 0 10px rgba(0, 255, 255, 0.5);
-            }
-            
-            &:active {
-                transform: scale(0.95);
-            }
-        }
-    }
-    
-    @media (max-width: 768px) {
+}
+
+.spark-controls h3 {
+    margin: 0 0 15px 0;
+    color: #4CAF50;
+    text-align: center;
+    font-size: 16px;
+    text-shadow: 0 0 10px rgba(0, 255, 255, 0.5);
+}
+
+.spark-controls h4 {
+    margin: 15px 0 10px 0;
+    color: #FFC107;
+    font-size: 14px;
+}
+
+.control-group {
+    margin-bottom: 15px;
+    padding: 8px;
+    background: rgba(255, 255, 255, 0.1);
+    border-radius: 4px;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+}
+
+.control-group label {
+    display: block;
+    margin-bottom: 5px;
+    font-size: 12px;
+    font-weight: bold;
+    color: #ccc;
+    min-width: 80px;
+}
+
+.control-group input[type="range"] {
+    flex: 1;
+    height: 4px;
+    background: rgba(0, 255, 255, 0.3);
+    border-radius: 2px;
+    outline: none;
+    width: 100%;
+}
+
+.control-group input[type="range"]::-webkit-slider-thumb {
+    appearance: none;
+    width: 12px;
+    height: 12px;
+    background: #00ffff;
+    border-radius: 50%;
+    cursor: pointer;
+    box-shadow: 0 0 5px rgba(0, 255, 255, 0.5);
+}
+
+.control-group input[type="color"] {
+    width: 50px;
+    height: 25px;
+    border: none;
+    border-radius: 3px;
+    cursor: pointer;
+}
+
+.control-group select {
+    width: 100%;
+    padding: 3px;
+    background: rgba(255, 255, 255, 0.9);
+    color: black;
+    border: none;
+    border-radius: 3px;
+    font-size: 12px;
+}
+
+.control-buttons {
+    display: flex;
+    gap: 5px;
+    flex-wrap: wrap;
+    margin-top: 15px;
+}
+
+.control-buttons button {
+    flex: 1;
+    min-width: 60px;
+    padding: 6px 8px;
+    background: rgba(0, 255, 255, 0.2);
+    border: 1px solid #00ffff;
+    color: #00ffff;
+    border-radius: 5px;
+    cursor: pointer;
+    font-size: 12px;
+    transition: all 0.3s ease;
+}
+
+.control-buttons button:hover:not(:disabled) {
+    background: rgba(0, 255, 255, 0.4);
+    box-shadow: 0 0 10px rgba(0, 255, 255, 0.5);
+}
+
+.control-buttons button:disabled {
+    background: #6c757d;
+    cursor: not-allowed;
+}
+
+.system-info {
+    font-size: 11px;
+    line-height: 1.4;
+}
+
+.system-info div {
+    margin-bottom: 2px;
+}
+
+input[type="text"] {
+    padding: 4px;
+    border: 1px solid #ccc;
+    border-radius: 3px;
+    font-size: 12px;
+}
+
+.spark-controls::-webkit-scrollbar {
+    width: 6px;
+}
+
+.spark-controls::-webkit-scrollbar-track {
+    background: rgba(255, 255, 255, 0.1);
+    border-radius: 3px;
+}
+
+.spark-controls::-webkit-scrollbar-thumb {
+    background: rgba(255, 255, 255, 0.3);
+    border-radius: 3px;
+}
+
+.spark-controls::-webkit-scrollbar-thumb:hover {
+    background: rgba(255, 255, 255, 0.5);
+}
+
+@media (max-width: 768px) {
+    .spark-controls {
         top: 10px;
         right: 10px;
         left: 10px;
         min-width: auto;
         padding: 15px;
-        
-        .control-group {
-            flex-direction: column;
-            align-items: flex-start;
-            gap: 5px;
-            
-            label {
-                min-width: auto;
-            }
-            
-            input[type="range"] {
-                width: 100%;
-            }
-        }
+    }
+    
+    .control-group {
+        flex-direction: column;
+        align-items: flex-start;
+        gap: 5px;
+    }
+    
+    .control-group label {
+        min-width: auto;
+    }
+    
+    .control-group input[type="range"] {
+        width: 100%;
     }
 }
 </style>

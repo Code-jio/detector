@@ -18,6 +18,9 @@ export class SparkParticleSystem {
             direction: new THREE.Vector3(1, 0, 0),
             intensity: 5,
             color: new THREE.Color(0x00aaff),
+            color1: '#0088ff', // 电弧主颜色（单色模式）
+            color2: '#4488ff', // 电弧拖尾颜色
+            enableMultiColor: true,  // 启用真实电弧颜色
             lifetime: 2,
             sparkLifetime: 1.5, // 火花粒子存活时间
             gravity: 9.8,
@@ -62,7 +65,7 @@ export class SparkParticleSystem {
     init() {
         // 创建电弧材质
         this.arcMaterial = new THREE.LineBasicMaterial({
-            color: 0xffffff,
+            color: new THREE.Color(this.config.color1 || '#0088ff'),
             transparent: true,
             opacity: 0.9,
             linewidth: 2
@@ -70,7 +73,7 @@ export class SparkParticleSystem {
         
         // 创建拖尾材质
         this.trailMaterial = new THREE.LineBasicMaterial({
-            color: 0x4488ff,
+            color: new THREE.Color(this.config.color2 || '#4488ff'),
             transparent: true,
             opacity: 0.4,
             linewidth: 1
@@ -247,9 +250,10 @@ export class SparkParticleSystem {
                 startTime: this.clock.getElapsedTime()
             };
 
-            // 设置电弧颜色
+            // 设置电弧颜色（多彩效果）
             const material = arc.material;
-            material.color.setStyle(this.config.color1);
+            const arcColor = this.getRandomArcColor();
+            material.color.set(arcColor);
             material.opacity = 0.9;
 
             this.arcGroup.add(arc);
@@ -347,11 +351,21 @@ export class SparkParticleSystem {
      */
     createTrail(points) {
         const trailGeometry = new THREE.BufferGeometry().setFromPoints(points);
-        const trail = new THREE.Line(trailGeometry, this.trailMaterial.clone());
+        const trailMaterial = this.trailMaterial.clone();
+        
+        // 为拖尾也添加多彩效果
+        if (this.config.enableMultiColor) {
+            const trailColor = this.getRandomArcColor();
+            trailMaterial.color.set(trailColor);
+            trailMaterial.opacity = 0.3; // 拖尾更透明
+        }
+        
+        const trail = new THREE.Line(trailGeometry, trailMaterial);
         trail.userData = {
             age: 0,
             maxAge: this.config.lifetime * 0.3,
-            isTrail: true
+            isTrail: true,
+            color: trailMaterial.color.clone() // 保存颜色用于更新
         };
         
         this.arcGroup.add(trail);
@@ -401,11 +415,20 @@ export class SparkParticleSystem {
                 if (arc.userData.isTrail) {
                     // 拖尾效果
                     arc.material.opacity = 0.4 * (1 - lifeRatio);
-                    arc.material.color.lerpColors(
-                        new THREE.Color(0x4488ff),
-                        new THREE.Color(0x001122),
-                        lifeRatio
-                    );
+                    if (!this.config.enableMultiColor) {
+                        arc.material.color.lerpColors(
+                            new THREE.Color(this.config.color2 || '#4488ff'),
+                            new THREE.Color(0x001122),
+                            lifeRatio
+                        );
+                    } else {
+                        // 多彩模式下，使用保存的颜色进行渐变
+                        arc.material.color.lerpColors(
+                            arc.userData.color,
+                            new THREE.Color(0x001122),
+                            lifeRatio
+                        );
+                    }
                 } else {
                     // 主电弧
                     arc.material.opacity = 0.9 * (1 - lifeRatio);
@@ -712,6 +735,60 @@ export class SparkParticleSystem {
         };
     }
 
+    /**
+     * 获取随机电弧颜色（基于真实电弧光谱）
+     * @returns {string} 随机颜色值
+     */
+    getRandomArcColor() {
+        if (!this.config.enableMultiColor) {
+            return this.config.color1;
+        }
+        
+        // 真实电弧颜色库
+        const arcColors = [
+            '#A6D1FF',  // 淡蓝色 - 低压电弧
+            '#8A2BE2',  // 紫罗兰色 - 高压电离
+            '#1E90FF',  // 道奇蓝 - 标准电弧
+            '#FFFACD',  // 柠檬绸色 - 高温火花
+            '#7CFC00'   // 草绿色 - 铜离子电弧
+        ];
+        
+        // 根据实际电弧出现概率分配权重
+        const colorWeights = {
+            '#A6D1FF': 0.40,  // 淡蓝色最常见
+            '#1E90FF': 0.40,  // 道奇蓝较常见
+            '#FFFACD': 0.15,  // 柠檬绸色中等
+            '#8A2BE2': 0.05,  // 紫罗兰色较少
+        };
+        
+        // 使用权重随机选择颜色
+        const random = Math.random();
+        let cumulative = 0;
+        
+        for (const color of arcColors) {
+            cumulative += colorWeights[color];
+            if (random <= cumulative) {
+                return color;
+            }
+        }
+        
+        return '#A6D1FF'; // 默认返回淡蓝色
+    }
+    
+    /**
+     * 更新颜色配置
+     * @param {string} color1 - 电弧主颜色
+     * @param {string} color2 - 电弧拖尾颜色
+     */
+    updateColors(color1, color2) {
+        this.config.color1 = color1;
+        this.config.color2 = color2;
+        
+        // 更新材质颜色
+        this.arcMaterial.color.set(color1);
+        this.trailMaterial.color.set(color2);
+    }
+    
     /**
      * 销毁粒子系统
      */

@@ -59,13 +59,32 @@
         </div>
         
         <div class="control-group">
+            <label>
+                <input type="checkbox" v-model="sparkConfig.enableMultiColor">
+                多彩电弧
+            </label>
+        </div>
+        
+        <div class="control-group" v-if="!sparkConfig.enableMultiColor">
             <label>电弧颜色</label>
             <input type="color" v-model="sparkConfig.color1">
         </div>
         
-        <div class="control-group">
+        <div class="control-group" v-if="!sparkConfig.enableMultiColor">
             <label>拖尾颜色</label>
             <input type="color" v-model="sparkConfig.color2">
+        </div>
+        
+        <div class="control-group" v-if="sparkConfig.enableMultiColor">
+            <label>真实电弧颜色库</label>
+            <div class="color-preview">
+                <span style="color: #A6D1FF;">■</span> 淡蓝色
+                <span style="color: #1E90FF;">■</span> 道奇蓝
+                <span style="color: #FFFACD;">■</span> 柠檬色
+                <span style="color: #8A2BE2;">■</span> 紫罗兰
+                <span style="color: #7CFC00;">■</span> 草绿色
+            </div>
+            <small>基于真实电弧光谱颜色</small>
         </div>
         
         <div class="control-group">
@@ -144,14 +163,16 @@ const sparkConfig = reactive({
     lifetime: 0.15,     // 电弧持续时间（更短）
     gravity: 50,      // 更强的重力
     direction: { x: 1, y: 0, z: 0 }, // 向上倾斜的发射方向
-    color1: '#ffffff',  // 电弧主颜色（亮白色）
-    color2: '#0066ff',  // 电弧边缘颜色（蓝色）
+    color1: '#0088ff',  // 电弧主颜色（蓝色）
+    color2: '#44aaff',  // 电弧边缘颜色（浅蓝色）
     randomDirection: true, // 允许随机方向
     spread: 0.3,        // 更大的扩散角度
     trailLength: 3,     // 更短的拖尾
     position: { x: 10, y: 10, z: 10 }, // 电弧发射源位置
     sparkSize: 0.15,      // 梭形粒子大小
-    sparkProbability: 0.1  // 火花粒子发射概率
+    sparkProbability: 0.1,  // 火花粒子发射概率
+    enableMultiColor: true, // 启用多彩电弧
+    enableRealColor: true, // 启用真实电弧颜色
 });
 
 const isSparkActive = ref(true);
@@ -330,8 +351,17 @@ const updateSystemInfo = () => {
 watch(sparkConfig, () => {
     if (sparkSystem) {
         sparkSystem.reset();
+        // 实时更新颜色
+        sparkSystem.updateColors(sparkConfig.color1, sparkConfig.color2);
     }
 }, { deep: true });
+
+// 单独监听颜色变化
+watch([() => sparkConfig.color1, () => sparkConfig.color2], ([newColor1, newColor2]) => {
+    if (sparkSystem) {
+        sparkSystem.updateColors(newColor1, newColor2);
+    }
+});
 
 // 在onMounted中添加
 onMounted(() => {
@@ -546,6 +576,29 @@ input[type="text"] {
 
 .spark-controls::-webkit-scrollbar-thumb:hover {
     background: rgba(255, 255, 255, 0.5);
+}
+
+.color-preview {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+    margin: 10px 0;
+    font-size: 11px;
+    line-height: 1.2;
+}
+
+.color-preview span {
+    margin-right: 3px;
+    font-size: 14px;
+    text-shadow: 0 0 3px rgba(0,0,0,0.5);
+}
+
+.color-preview small {
+    color: #aaa;
+    font-size: 10px;
+    margin-top: 5px;
+    display: block;
+    width: 100%;
 }
 
 @media (max-width: 768px) {

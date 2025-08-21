@@ -28,6 +28,14 @@ export class SparkParticleSystem {
             maxParticles: 1000,
             cleanupInterval: 1.0,
             autoCleanup: true,
+            // 光源闪烁配置
+            enableLightFlash: true, // 是否启用光源闪烁
+            lightIntensity: 200, // 光源强度（>1000）
+            lightColor: 0xffffff, // 光源颜色
+            lightDistance: 50, // 光源影响距离
+            lightDecay: 2, // 光源衰减
+            flashDuration: 0.1, // 闪烁持续时间（秒）
+            flashProbability: 0.8, // 每次发射电弧时闪烁的概率
             ...config
         };
         this.camera = camera;
@@ -55,6 +63,10 @@ export class SparkParticleSystem {
         this.isPaused = false;
         this.savedStates = new Map(); // 保存的状态
         this.currentStateId = null;
+        
+        // 光源相关
+        this.flashLight = null;
+        this.activeFlashes = []; // 活跃的闪烁光源
         
         this.init();
     }
@@ -266,6 +278,20 @@ export class SparkParticleSystem {
             if (Math.random() < (this.config.sparkProbability || 0.2)) {
                 this.emitSparkParticles(startPos, endPos);
             }
+            
+            // 创建闪烁光源效果
+            if (Math.random() < this.config.flashProbability) {
+                // 在电弧路径上创建多个闪烁点
+                const flashCount = 1 + Math.floor(Math.random() * 2);
+                for (let j = 0; j < flashCount; j++) {
+                    const flashPos = startPos.clone().lerp(endPos, Math.random());
+                    this.createFlashLight(
+                        flashPos,
+                        this.config.lightIntensity * (0.8 + Math.random() * 0.4),
+                        this.config.flashDuration * (0.8 + Math.random() * 0.4)
+                    );
+                }
+            }
         }
     }
     
@@ -390,6 +416,9 @@ export class SparkParticleSystem {
             }
         }
         
+        // 更新闪烁光源（无论是否可见，都要更新生命周期）
+        this.updateFlashLights(deltaTime);
+        
         // 更新现有电弧（无论是否可见，都要更新生命周期）
         for (let i = this.arcs.length - 1; i >= 0; i--) {
             const arc = this.arcs[i];
@@ -500,6 +529,12 @@ export class SparkParticleSystem {
             spark.material.dispose();
         }
         this.sparkParticles = [];
+        
+        // 清理所有闪烁光源
+        for (const light of this.activeFlashes) {
+            this.scene.remove(light);
+        }
+        this.activeFlashes = [];
     }
     
     /**
@@ -812,5 +847,110 @@ export class SparkParticleSystem {
         
         // 清理保存的状态
         this.savedStates.clear();
+    }
+    
+        /**
+         * 创建闪烁光源
+         * @param {THREE.Vector3} position - 光源位置
+         * @param {number} intensity - 光源强度
+         * @param {number} duration - 持续时间（秒）
+         */
+        createFlashLight(position, intensity, duration) {
+            if (!this.config.enableLightFlash) return;
+            
+            const light = new THREE.PointLight(
+                this.config.lightColor,
+                intensity,
+                this.config.lightDistance,
+                this.config.lightDecay
+            );
+            
+            light.position.copy(position);
+            light.userData = {
+                age: 0,
+                maxAge: duration,
+                initialIntensity: intensity
+            };
+            
+            this.scene.add(light);
+            this.activeFlashes.push(light);
+            
+            return light;
+        }
+        
+        /**
+         * 更新所有活跃的闪烁光源
+         * @param {number} deltaTime - 时间增量
+         */
+        updateFlashLights(deltaTime) {
+            for (let i = this.activeFlashes.length - 1; i >= 0; i--) {
+                const light = this.activeFlashes[i];
+                const userData = light.userData;
+                
+                userData.age += deltaTime;
+                
+                const progress = userData.age / userData.maxAge;
+                
+                if (progress >= 1) {
+                    // 移除光源
+                    this.scene.remove(light);
+                    this.activeFlashes.splice(i, 1);
+                    continue;
+                }
+                
+                // 快速衰减效果（模拟电弧闪烁）
+                const decayFactor = Math.pow(1 - progress, 3); // 立方衰减
+                light.intensity = userData.initialIntensity * decayFactor;
+                
+                // 添加随机闪烁
+                if (Math.random() < 0.3) {
+                    light.intensity *= 0.7 + Math.random() * 0.6;
+                }
+            }
+        }
+    
+    /**
+     * 更新光源配置
+     * @param {Object} lightConfig - 光源配置对象
+     */
+    updateLightConfig(lightConfig) {
+        Object.assign(this.config, lightConfig);
+    }
+    
+    /**
+     * 获取当前光源配置
+     * @returns {Object} 光源配置
+     */
+    getLightConfig() {
+        return {
+            enableLightFlash: this.config.enableLightFlash,
+            lightIntensity: this.config.lightIntensity,
+            lightColor: this.config.lightColor,
+            lightDistance: this.config.lightDistance,
+            lightDecay: this.config.lightDecay,
+            flashDuration: this.config.flashDuration,
+            flashProbability: this.config.flashProbability
+        };
+    }
+    
+    /**
+     * 手动触发一次光源闪烁
+     * @param {THREE.Vector3} position - 闪烁位置（可选，默认为当前电弧位置）
+     * @param {number} intensity - 闪烁强度（可选，默认为配置值）
+     */
+    triggerFlash(position = null, intensity = null) {
+        const flashPos = position || new THREE.Vector3(
+            this.config.position.x || 0,
+            this.config.position.y || 0,
+            this.config.position.z || 0
+        );
+        
+        const flashIntensity = intensity || this.config.lightIntensity;
+        
+        this.createFlashLight(
+            flashPos,
+            flashIntensity,
+            this.config.flashDuration
+        );
     }
 }

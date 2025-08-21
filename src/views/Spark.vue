@@ -222,6 +222,21 @@ const createStats = (dom) => {
 const createScene = () => {
     const scene = new THREE.Scene(); // 创建场景
     scene.background = new THREE.Color(0x000000); // 设置背景颜色
+    
+    // 添加地板以显示光照效果
+    const floorGeometry = new THREE.PlaneGeometry(200, 200);
+    const floorMaterial = new THREE.MeshStandardMaterial({
+        color: 0x404040,
+        roughness: 0.7,
+        metalness: 0.3,
+        side: THREE.DoubleSide
+    });
+    const floor = new THREE.Mesh(floorGeometry, floorMaterial);
+    floor.rotation.x = -Math.PI / 2; // 水平放置
+    floor.position.y = 0; // 放置在电弧下方
+    floor.receiveShadow = true; // 接收阴影
+    scene.add(floor);
+    
     return scene;
 }
 

@@ -30,10 +30,10 @@ export class SparkParticleSystem {
             autoCleanup: true,
             // 光源闪烁配置
             enableLightFlash: true, // 是否启用光源闪烁
-            lightIntensity: 200, // 光源强度（>1000）
-            lightColor: 0xffffff, // 光源颜色
-            lightDistance: 50, // 光源影响距离
-            lightDecay: 2, // 光源衰减
+            lightIntensity: 4000, 
+            lightColor: 0xffffff,
+            lightDistance: 150, 
+            lightDecay: 3, 
             flashDuration: 0.1, // 闪烁持续时间（秒）
             flashProbability: 0.8, // 每次发射电弧时闪烁的概率
             ...config
@@ -72,6 +72,22 @@ export class SparkParticleSystem {
     }
     
     /**
+     * 初始化光源
+     */
+    initLight() {
+        if (!this.config.enableLightFlash) return;
+        
+        this.flashLight = this.createFlashLight(
+            this.config.position, 
+            0, 
+            this.config.flashDuration
+        )
+        
+        // 将光源添加到根组，这样它会随系统移动
+        this.rootGroup.add(this.flashLight);
+    }
+    
+    /**
      * 初始化电火花系统
      */
     init() {
@@ -90,12 +106,7 @@ export class SparkParticleSystem {
             opacity: 0.4,
             linewidth: 1
         });
-        
-        // 创建着色器材质（备用）
-        this.createSparkShaderMaterial();
-        
-        // 创建基础平面几何体（备用）
-        this.sparkGeometry = new THREE.PlaneGeometry(1, 1);
+        this.initLight();
     }
     
     /**
@@ -278,20 +289,6 @@ export class SparkParticleSystem {
             if (Math.random() < (this.config.sparkProbability || 0.2)) {
                 this.emitSparkParticles(startPos, endPos);
             }
-            
-            // 创建闪烁光源效果
-            if (Math.random() < this.config.flashProbability) {
-                // 在电弧路径上创建多个闪烁点
-                const flashCount = 1 + Math.floor(Math.random() * 2);
-                for (let j = 0; j < flashCount; j++) {
-                    const flashPos = startPos.clone().lerp(endPos, Math.random());
-                    this.createFlashLight(
-                        flashPos,
-                        this.config.lightIntensity * (0.8 + Math.random() * 0.4),
-                        this.config.flashDuration * (0.8 + Math.random() * 0.4)
-                    );
-                }
-            }
         }
     }
     
@@ -411,13 +408,11 @@ export class SparkParticleSystem {
         // 如果系统不可见，仍然需要更新生命周期，但不发射新电弧
         if (this.isVisible) {
             // 发射新电弧
-            if(Math.random() < this.config.intensity / 1000) {
+            if(Math.random() < 0.2) {
                 this.emitArc();
+                this.updateFlashLights(deltaTime)
             }
         }
-        
-        // 更新闪烁光源（无论是否可见，都要更新生命周期）
-        this.updateFlashLights(deltaTime);
         
         // 更新现有电弧（无论是否可见，都要更新生命周期）
         for (let i = this.arcs.length - 1; i >= 0; i--) {
@@ -849,65 +844,109 @@ export class SparkParticleSystem {
         this.savedStates.clear();
     }
     
-        /**
-         * 创建闪烁光源
-         * @param {THREE.Vector3} position - 光源位置
-         * @param {number} intensity - 光源强度
-         * @param {number} duration - 持续时间（秒）
-         */
-        createFlashLight(position, intensity, duration) {
-            if (!this.config.enableLightFlash) return;
-            
-            const light = new THREE.PointLight(
-                this.config.lightColor,
-                intensity,
-                this.config.lightDistance,
-                this.config.lightDecay
-            );
-            
-            light.position.copy(position);
-            light.userData = {
-                age: 0,
-                maxAge: duration,
-                initialIntensity: intensity
-            };
-            
-            this.scene.add(light);
-            this.activeFlashes.push(light);
-            
-            return light;
-        }
+    /**
+     * 创建闪烁光源
+     * @param {THREE.Vector3} position - 光源位置
+     * @param {number} intensity - 光源强度
+     * @param {number} duration - 持续时间（秒）
+     */
+    createFlashLight(position, intensity, duration) {
+        if (!this.config.enableLightFlash) return;
         
-        /**
-         * 更新所有活跃的闪烁光源
-         * @param {number} deltaTime - 时间增量
-         */
-        updateFlashLights(deltaTime) {
-            for (let i = this.activeFlashes.length - 1; i >= 0; i--) {
-                const light = this.activeFlashes[i];
-                const userData = light.userData;
+        const light = new THREE.PointLight(
+            this.config.lightColor,
+            intensity,
+            this.config.lightDistance,
+            this.config.lightDecay
+        );
+        
+        light.position.copy(position);
+        light.userData = {
+            age: 0,
+            maxAge: duration,
+            initialIntensity: intensity
+        };
+        
+        this.scene.add(light);
+        this.activeFlashes.push(light);
+        
+        return light;
+    }
+    
+    /**
+     * 更新闪烁光源
+     * @param {number} deltaTime - 时间增量
+     */
+    updateFlashLights(deltaTime) {
+        if (this.flashLight && this.flashLight.userData && this.config.enableLightFlash) {
+            this.flashLight.userData.age += deltaTime;
+            
+            const progress = this.flashLight.userData.age / this.flashLight.userData.maxAge;
+            
+            if (progress >= 1) {
+                // 电弧熄灭阶段 - 完全关闭光源
+                this.flashLight.intensity = 0;
+                this.flashLight.userData.age = 0;
+                this.flashLight.visible = false;
+            } else {
+                // 确保光源可见
+                this.flashLight.visible = true;
                 
-                userData.age += deltaTime;
+                // 真实电弧闪烁特性模拟
+                const baseIntensity = this.config.lightIntensity;
                 
-                const progress = userData.age / userData.maxAge;
-                
-                if (progress >= 1) {
-                    // 移除光源
-                    this.scene.remove(light);
-                    this.activeFlashes.splice(i, 1);
-                    continue;
+                // 1. 电弧初始爆发阶段 - 极高亮度瞬间爆发
+                let intensityMultiplier = 1.0;
+                if (progress < 0.1) {
+                    // 初始0-10%阶段，超亮爆发
+                    const burstPhase = progress / 0.1;
+                    intensityMultiplier = 1.5 + burstPhase * 0.8; // 1.5x - 2.3x
+                } 
+                // 2. 电弧维持阶段 - 高亮度持续
+                else if (progress < 0.3) {
+                    const sustainPhase = (progress - 0.1) / 0.2;
+                    intensityMultiplier = 1.2 - sustainPhase * 0.3; // 1.2x - 0.9x
+                }
+                // 3. 电弧衰减阶段 - 快速衰减
+                else if (progress < 0.7) {
+                    const decayPhase = (progress - 0.3) / 0.4;
+                    intensityMultiplier = 0.9 * Math.pow(1 - decayPhase, 2); // 二次衰减
+                }
+                // 4. 电弧熄灭阶段 - 微弱余辉
+                else {
+                    const fadePhase = (progress - 0.7) / 0.3;
+                    intensityMultiplier = 0.1 * Math.pow(1 - fadePhase, 3); // 三次衰减
                 }
                 
-                // 快速衰减效果（模拟电弧闪烁）
-                const decayFactor = Math.pow(1 - progress, 3); // 立方衰减
-                light.intensity = userData.initialIntensity * decayFactor;
+                // 高频随机闪烁 - 模拟电弧不稳定放电
+                const flickerNoise = 0.7 + Math.random() * 0.6; // 0.7-1.3倍随机变化
+                const microFlicker = Math.random() < 0.15 ? 0.5 : 1.0; // 15%概率微闪烁
                 
-                // 添加随机闪烁
-                if (Math.random() < 0.3) {
-                    light.intensity *= 0.7 + Math.random() * 0.6;
-                }
+                // 电弧频谱特性 - 蓝白色电弧光
+                const colorTemp = 6500 + Math.random() * 2000; // 6500K-8500K色温
+                const colorHue = 0.55 + (Math.random() - 0.5) * 0.05; // 蓝白色调微调
+                
+                // 应用最终强度
+                this.flashLight.intensity = baseIntensity * intensityMultiplier * flickerNoise * microFlicker;
+                
+                // 动态调整光源颜色以匹配电弧光谱
+                const hue = colorHue;
+                const saturation = 0.8 + Math.random() * 0.2;
+                const lightness = 0.9 + Math.random() * 0.1;
+                this.flashLight.color.setHSL(hue, saturation, lightness);
+                
+                // 电弧放电时的电磁干扰效果 - 光源位置微抖动
+                const jitterAmount = 0.05 * (1 - progress); // 随时间递减的抖动
+                this.flashLight.position.x += (Math.random() - 0.5) * jitterAmount;
+                this.flashLight.position.y += (Math.random() - 0.5) * jitterAmount;
+                this.flashLight.position.z += (Math.random() - 0.5) * jitterAmount;
+                
+                // 电弧电流声模拟 - 通过光源范围变化体现
+                const rangeVariation = 0.9 + Math.random() * 0.2;
+                this.flashLight.distance = this.config.lightDistance * rangeVariation;
             }
         }
+    }
     
     /**
      * 更新光源配置
@@ -945,7 +984,7 @@ export class SparkParticleSystem {
             this.config.position.z || 0
         );
         
-        const flashIntensity = intensity || this.config.lightIntensity;
+        const flashIntensity = intensity || this.config.flashDuration * (0.8 + Math.random() * 0.4);
         
         this.createFlashLight(
             flashPos,

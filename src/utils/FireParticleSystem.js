@@ -1,4 +1,5 @@
 import * as THREE from 'three';
+import TWEEN from '@tweenjs/tween.js';  
 
 /**
  * 火焰粒子系统类
@@ -444,56 +445,263 @@ export class FireParticleSystem {
  * 提供简化的火焰效果创建接口
  */
 export class FireEffectManager {
-    constructor(scene) {
-        this.scene = scene;
-        this.effects = [];
-    }
+  constructor(scene) {
+    this.scene = scene;
+    this.effects = [];
+  }
 
-    createFireEffect(options = {}) {
-        const fireEffect = new FireParticleSystem(this.scene, options);
-        this.effects.push({
-            type: 'fire',
-            effect: fireEffect
-        });
-        
-        // 添加到全局效果列表
-        if (!window.effects) window.effects = [];
-        window.effects.push({
-            type: 'fire',
-            update: (deltaTime) => fireEffect.update(deltaTime)
-        });
+  createFireEffect(options = {}) {
+    const fireEffect = new FireParticleSystem(this.scene, options);
+    this.effects.push({
+      type: "fire",
+      effect: fireEffect,
+    });
 
-        return fireEffect;
-    }
+    // 添加到全局效果列表
+    if (!window.effects) window.effects = [];
+    window.effects.push({
+      type: "fire",
+      update: (deltaTime) => fireEffect.update(deltaTime),
+    });
 
-    removeEffect(effect) {
-        const index = this.effects.findIndex(e => e.effect === effect);
-        if (index !== -1) {
-            this.effects[index].effect.destroy();
-            this.effects.splice(index, 1);
-            
-            // 从全局效果列表中移除
-            if (window.effects) {
-                const globalIndex = window.effects.findIndex(e => e.effect === effect);
-                if (globalIndex !== -1) {
-                    window.effects.splice(globalIndex, 1);
-                }
-            }
+    return fireEffect;
+  }
+
+  removeEffect(effect) {
+    const index = this.effects.findIndex((e) => e.effect === effect);
+    if (index !== -1) {
+      this.effects[index].effect.destroy();
+      this.effects.splice(index, 1);
+
+      // 从全局效果列表中移除
+      if (window.effects) {
+        const globalIndex = window.effects.findIndex(
+          (e) => e.effect === effect
+        );
+        if (globalIndex !== -1) {
+          window.effects.splice(globalIndex, 1);
         }
+      }
+    }
+  }
+
+  update(deltaTime) {
+    this.effects.forEach(({ effect }) => {
+      if (effect.update) {
+        effect.update(deltaTime);
+      }
+    });
+  }
+
+  destroy() {
+    this.effects.forEach(({ effect }) => {
+      effect.destroy();
+    });
+    this.effects = [];
+  }
+
+  /**
+   * 让火焰逐渐变大
+   * @param {number} targetScale - 目标缩放倍数 (默认1.5)
+   * @param {number} duration - 变大持续时间（秒，默认2.0）
+   * @param {Function} onComplete - 完成回调函数
+   */
+  growFire(targetScale = 1.5, duration = 2.0, onComplete = null) {
+    if (this.growAnimation) {
+      this.growAnimation.stop();
     }
 
-    update(deltaTime) {
-        this.effects.forEach(({ effect }) => {
-            if (effect.update) {
-                effect.update(deltaTime);
-            }
-        });
+    // 保存原始值
+    this.originalFireEmissionRate =
+      this.originalFireEmissionRate || this.options.fireEmissionRate;
+    this.originalSmokeEmissionRate =
+      this.originalSmokeEmissionRate || this.options.smokeEmissionRate;
+
+    const startScale = this.currentFireScale || 1.0;
+    const targetFireRate = this.originalFireEmissionRate * targetScale;
+    const targetSmokeRate = this.originalSmokeEmissionRate * targetScale;
+
+    this.growAnimation = new TWEEN.Tween({
+      scale: startScale,
+      fireRate: this.originalFireEmissionRate,
+      smokeRate: this.originalSmokeEmissionRate,
+    })
+      .to(
+        {
+          scale: targetScale,
+          fireRate: targetFireRate,
+          smokeRate: targetSmokeRate,
+        },
+        duration * 1000
+      )
+      .easing(TWEEN.Easing.Quadratic.Out)
+      .onUpdate((obj) => {
+        this.currentFireScale = obj.scale;
+        this.fireSystem.scale.setScalar(obj.scale);
+        this.smokeSystem.scale.setScalar(obj.scale);
+
+        // 同步调整发射率
+        this.options.fireEmissionRate = obj.fireRate;
+        this.options.smokeEmissionRate = obj.smokeRate;
+
+        // 同步调整锥形高度和角度
+        this.options.coneHeight = 8.0 * obj.scale;
+        this.options.coneAngle = (Math.PI / 6) * (1 + (obj.scale - 1) * 0.3);
+      })
+      .onComplete(() => {
+        if (onComplete) onComplete();
+        this.growAnimation = null;
+      })
+      .start();
+  }
+
+  /**
+   * 让火焰逐渐变小直到熄灭
+   * @param {number} duration - 变小持续时间（秒，默认3.0）
+   * @param {Function} onComplete - 完成回调函数
+   */
+  shrinkFire(duration = 3.0, onComplete = null) {
+    if (this.shrinkAnimation) {
+      this.shrinkAnimation.stop();
     }
 
-    destroy() {
-        this.effects.forEach(({ effect }) => {
-            effect.destroy();
-        });
-        this.effects = [];
+    // 获取当前缩放值
+    const currentScale = this.currentFireScale || 1.0;
+    const originalFireRate =
+      this.originalFireEmissionRate || this.options.fireEmissionRate;
+    const originalSmokeRate =
+      this.originalSmokeEmissionRate || this.options.smokeEmissionRate;
+
+    this.shrinkAnimation = new TWEEN.Tween({
+      scale: currentScale,
+      fireRate: this.options.fireEmissionRate,
+      smokeRate: this.options.smokeEmissionRate,
+      opacity: 1.0,
+    })
+      .to(
+        {
+          scale: 0.0,
+          fireRate: 0,
+          smokeRate: 0,
+          opacity: 0.0,
+        },
+        duration * 1000
+      )
+      .easing(TWEEN.Easing.Quadratic.In)
+      .onUpdate((obj) => {
+        this.currentFireScale = obj.scale;
+        this.fireSystem.scale.setScalar(obj.scale);
+        this.smokeSystem.scale.setScalar(obj.scale);
+
+        // 逐渐减小发射率
+        this.options.fireEmissionRate = obj.fireRate;
+        this.options.smokeEmissionRate = obj.smokeRate;
+
+        // 调整锥形参数
+        this.options.coneHeight = 8.0 * obj.scale;
+        this.options.coneAngle = (Math.PI / 6) * obj.scale;
+
+        // 降低材质透明度
+        if (this.fireMaterial.uniforms) {
+          this.fireMaterial.uniforms.globalOpacity = { value: obj.opacity };
+        }
+        if (this.smokeMaterial.uniforms) {
+          this.smokeMaterial.uniforms.globalOpacity = {
+            value: obj.opacity * 0.6,
+          };
+        }
+      })
+      .onComplete(() => {
+        // 完全停止发射
+        this.options.fireEmissionRate = 0;
+        this.options.smokeEmissionRate = 0;
+
+        // 隐藏粒子系统
+        this.fireSystem.visible = false;
+        this.smokeSystem.visible = false;
+
+        if (onComplete) onComplete();
+        this.shrinkAnimation = null;
+      })
+      .start();
+  }
+
+  /**
+   * 重置火焰到初始状态
+   */
+  resetFire() {
+    if (this.growAnimation) {
+      this.growAnimation.stop();
+      this.growAnimation = null;
     }
+    if (this.shrinkAnimation) {
+      this.shrinkAnimation.stop();
+      this.shrinkAnimation = null;
+    }
+
+    // 重置缩放
+    this.currentFireScale = 1.0;
+    this.fireSystem.scale.setScalar(1.0);
+    this.smokeSystem.scale.setScalar(1.0);
+
+    // 重置发射率
+    if (this.originalFireEmissionRate) {
+      this.options.fireEmissionRate = this.originalFireEmissionRate;
+    }
+    if (this.originalSmokeEmissionRate) {
+      this.options.smokeEmissionRate = this.originalSmokeEmissionRate;
+    }
+
+    // 重置透明度
+    if (this.fireMaterial.uniforms) {
+      this.fireMaterial.uniforms.globalOpacity = { value: 1.0 };
+    }
+    if (this.smokeMaterial.uniforms) {
+      this.smokeMaterial.uniforms.globalOpacity = { value: 0.6 };
+    }
+
+    // 重置锥形参数
+    this.options.coneHeight = 8.0;
+    this.options.coneAngle = Math.PI / 6;
+
+    // 显示粒子系统
+    this.fireSystem.visible = true;
+    this.smokeSystem.visible = true;
+  }
+
+  /**
+   * 检查动画状态
+   * @returns {Object} 动画状态信息
+   */
+  getAnimationStatus() {
+    return {
+      isGrowing: !!this.growAnimation,
+      isShrinking: !!this.shrinkAnimation,
+      currentScale: this.currentFireScale || 1.0,
+      fireEmissionRate: this.options.fireEmissionRate,
+      smokeEmissionRate: this.options.smokeEmissionRate,
+      coneHeight: this.options.coneHeight,
+      coneAngle: this.options.coneAngle,
+    };
+  }
+
+  /**
+   * 设置火焰强度（快捷方法）
+   * @param {number} intensity - 强度系数 (0-2)
+   */
+  setIntensity(intensity) {
+    const clampedIntensity = Math.max(0, Math.min(2, intensity));
+
+    if (this.growAnimation) this.growAnimation.stop();
+    if (this.shrinkAnimation) this.shrinkAnimation.stop();
+
+    this.currentFireScale = clampedIntensity;
+    this.fireSystem.scale.setScalar(clampedIntensity);
+    this.smokeSystem.scale.setScalar(clampedIntensity);
+
+    this.options.fireEmissionRate = 60 * clampedIntensity;
+    this.options.smokeEmissionRate = 20 * clampedIntensity;
+    this.options.coneHeight = 8.0 * clampedIntensity;
+    this.options.coneAngle = (Math.PI / 6) * (1 + (clampedIntensity - 1) * 0.3);
+  }
 }

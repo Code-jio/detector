@@ -296,7 +296,7 @@ export class SparkParticleSystem {
      * 发射电火花粒子
      */
     emitSparkParticles(startPos, endPos) {
-        const particleCount = 5 + Math.floor(Math.random() * 10);
+        const particleCount = 20 + Math.floor(Math.random() * 30);
         const baseDirection = endPos.clone().sub(startPos).normalize();
         
         for (let i = 0; i < particleCount; i++) {
@@ -408,7 +408,7 @@ export class SparkParticleSystem {
         // 如果系统不可见，仍然需要更新生命周期，但不发射新电弧
         if (this.isVisible) {
             // 发射新电弧
-            if(Math.random() < 0.2) {
+            if(Math.random() < 0.1) {
                 this.emitArc();
                 this.updateFlashLights(deltaTime)
             }

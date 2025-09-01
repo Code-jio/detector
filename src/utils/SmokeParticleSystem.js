@@ -345,12 +345,11 @@ export class SmokeEffectManager {
   }
     
   /**
-}
-     * 让烟雾逐渐变大
-     * @param {number} targetScale - 目标缩放倍数 (默认2.0)
-     * @param {number} duration - 变大持续时间（秒，默认3.0）
-     * @param {Function} onComplete - 完成回调函数
-     */
+   * 让烟雾逐渐变大
+   * @param {number} targetScale - 目标缩放倍数 (默认2.0)
+   * @param {number} duration - 变大持续时间（秒，默认3.0）
+   * @param {Function} onComplete - 完成回调函数
+   */
   growSmoke(targetScale = 2.0, duration = 3.0, onComplete = null) {
     if (this.growAnimation) {
       this.growAnimation.stop();

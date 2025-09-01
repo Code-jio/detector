@@ -160,7 +160,7 @@ const state = ref(null) // 性能监视器dom
 // 电火花粒子系统配置
 const sparkConfig = reactive({
     enabled: false,
-    intensity: 80,      // 发射强度（降低频率）
+    intensity: 120,      // 发射强度（降低频率）
     speed: 400,         // 电弧速度
     size: 0.05,         // 电弧粗细
     lifetime: 0.15,     // 电弧持续时间（更短）
@@ -169,11 +169,11 @@ const sparkConfig = reactive({
     color1: '#0088ff',  // 电弧主颜色（蓝色）
     color2: '#44aaff',  // 电弧边缘颜色（浅蓝色）
     randomDirection: true, // 允许随机方向
-    spread: 0.3,        // 更大的扩散角度
+    spread: 0.6,        // 更大的扩散角度
     trailLength: 3,     // 更短的拖尾
     position: { x: 10, y: 10, z: 10 }, // 电弧发射源位置
-    sparkSize: 0.15,      // 梭形粒子大小
-    sparkProbability: 0.1,  // 火花粒子发射概率
+    sparkSize: 0.20,      // 梭形粒子大小
+    sparkProbability: 0.05,  // 火花粒子发射概率
     enableMultiColor: true, // 启用多彩电弧
     enableRealColor: true, // 启用真实电弧颜色
 });

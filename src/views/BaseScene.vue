@@ -101,10 +101,25 @@ const clickScene = (event) => {
 
 
 
-onMounted(() => {
+onMounted(async () => {
+    // 检查硬件兼容性
+    const hardwareCheck = window.hardwareCheckResult || { compatible: true };
+    
+    if (!hardwareCheck.compatible) {
+        console.warn('硬件检查未通过，跳过3D渲染');
+        return;
+    }
+
     createStats(state.value); // 创建性能监视器
     scene = createScene(); // 创建场景
     createRender(container.value) // 创建渲染器
+    
+    // 检查WebGL上下文是否创建成功
+    if (!renderer) {
+        console.error('无法初始化3D渲染器，请检查硬件支持');
+        return;
+    }
+
     // 创建控制器
     const controls = new OrbitControls(camera, renderer.domElement);
     // 创建环境光
@@ -112,7 +127,6 @@ onMounted(() => {
     scene.add(ambientLight); // 添加环境光
     scene.add(createAxesHelper()) // 添加坐标轴辅助
     scene.add(createGridHelper()) // 添加坐标轴辅助
-
 
     // 左键点击事件
     container.value.addEventListener('click', clickScene, false);
@@ -124,18 +138,10 @@ onMounted(() => {
         renderer.setSize(window.innerWidth, window.innerHeight); // 设置渲染器尺寸
     }, false);
 
-    // console.log(animate_List[0]);
-
     // 逐帧渲染
     const render = () => {
         stats.update(); // 开始性能监视器
         controls.update();
-        // const frameT = clock.getDelta();
-        // 更新播放器相关的时间
-        // if (mixer) {
-        //     mixer.update(frameT); // 更新动画
-        // }
-
         renderer.render(scene, camera); // 渲染场景
         requestAnimationFrame(render); // 请求再次执行渲染函数render
     }

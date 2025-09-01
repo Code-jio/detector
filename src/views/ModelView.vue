@@ -115,6 +115,15 @@ export default {
     },
     
     initThreeJS() {
+      // 检查硬件兼容性
+      const hardwareCheck = window.hardwareCheckResult || { compatible: true };
+      
+      if (!hardwareCheck.compatible) {
+        console.warn('硬件检查未通过，跳过3D渲染');
+        this.error = '硬件检查未通过，无法启动3D渲染';
+        return;
+      }
+
       const container = this.$refs.modelViewer;
       if (!container) return;
       
@@ -129,10 +138,21 @@ export default {
       this.camera.position.set(5, 5, 5);
       
       // 创建渲染器
-      this.renderer = new THREE.WebGLRenderer({ antialias: true });
+      const rendererOptions = { antialias: true };
+      this.renderer = new THREE.WebGLRenderer(rendererOptions);
+      
+      // 创建渲染器
+      this.renderer = new THREE.WebGLRenderer(rendererOptions);
       this.renderer.setSize(width, height);
-      this.renderer.shadowMap.enabled = true;
-      this.renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+      
+      // 根据硬件配置阴影
+      if (hardwareCheck.details?.vram?.estimated >= 2 * 1024 * 1024 * 1024) {
+        this.renderer.shadowMap.enabled = true;
+        this.renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+      } else {
+        this.renderer.shadowMap.enabled = false;
+      }
+      
       container.appendChild(this.renderer.domElement);
       
       // 创建控制器

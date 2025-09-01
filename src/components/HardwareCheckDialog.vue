@@ -53,17 +53,17 @@ const checkResults = ref({
 })
 
 const performCheck = async () => {
-  console.log('执行硬件检查...')
-  await hardwareChecker.performFullCheck()
-  checkResults.value = hardwareChecker.getReport()
-  
-  // 如果检查通过，自动关闭对话框
-  if (checkResults.value.overall) {
-    setTimeout(() => {
-      handleContinue()
-    }, 1500)
+    console.log('执行硬件检查...')
+    await hardwareChecker.performFullCheck()
+    checkResults.value = hardwareChecker.getReport()
+    
+    // 如果通过检查，自动关闭对话框
+    if (checkResults.value.overall) {
+      setTimeout(() => {
+        handleContinue()
+      }, 1000)
+    }
   }
-}
 
 const handleContinue = () => {
   dialogVisible.value = false

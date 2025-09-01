@@ -209,9 +209,6 @@ class HardwareChecker {
         this.checkSystemRAM();
         this.checkGPUInfo();
 
-        // 生成警告信息
-        this.generateWarnings();
-
         // 判断总体兼容性
         this.checkResults.overall = this.evaluateOverallCompatibility();
 

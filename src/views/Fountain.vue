@@ -135,12 +135,12 @@ onMounted(() => {
     scene.add(pointLight2);
     
     // 创建喷水粒子系统
-    const fountain = new FountainParticleSystem(scene, new THREE.Vector3(0, 5, 0));
-    
-    // 示例：设置不同的喷水方向和速度
-    fountain.setDirection(new THREE.Vector3(1, 1, 1)); // 斜向喷射
-    fountain.setInitialSpeed(50); // 设置初始速度
-    fountain.setGravity(-60); // 增强重力效果
+    const fountain = new FountainParticleSystem(scene, {
+        position: { x: 0, y: 0, z: 0 },
+        initialSpeed: 50,
+        direction: { x: 1, y: 1, z: 1 },
+        gravity: -60
+    });
     
     container.value.addEventListener('click', clickScene, false);
     

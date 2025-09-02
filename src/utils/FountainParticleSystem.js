@@ -15,6 +15,9 @@ export class FountainParticleSystem {
             options.position?.z ?? 0
         );
         
+        // 保存初始位置用于重置
+        this.initialPosition = this.position.clone();
+        
         this.particles = [];
         this.maxParticles = options.maxParticles ?? 3000;
         this.gravity = options.gravity ?? -9.8;
@@ -292,8 +295,10 @@ export class FountainParticleSystem {
     updateConfig(config) {
         if (!config || typeof config !== 'object') return;
         
-        // 位置
-        if (config.position) {
+        // 位置（包括初始位置）
+        if (config.initialPosition) {
+            this.setInitialPosition(config.initialPosition);
+        } else if (config.position) {
             this.setPosition(config.position);
         }
         

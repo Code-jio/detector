@@ -214,7 +214,7 @@ module.exports = {
   devServer: {
     // 使用 '0.0.0.0' 绑定所有网络接口，或者动态获取IP
     host: '0.0.0.0',
-    port: 3002,
+    port: 'auto',
     open: [
       `http://localhost:3002`,
       `http://${getLocalIpAddress()}:3002`

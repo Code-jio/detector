@@ -8,7 +8,7 @@ export default createRouter({
   routes: [
     {
       path: '/',
-      redirect: '/Spark',
+      redirect: '/Fountain',
     },
     {
       path: '/home',
@@ -74,6 +74,11 @@ export default createRouter({
       path: "/Spark",
       component: () =>
         import('@/views/Spark.vue'),
-    }
+    },
+    {
+      path: "/Fountain",
+      component: () =>
+        import('@/views/Fountain.vue'),
+    },
   ],
 });
